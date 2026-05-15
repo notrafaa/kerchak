@@ -84,7 +84,7 @@ export default function Dashboard() {
     if (!lastSeen) return false;
     const last = new Date(lastSeen).getTime();
     const now = new Date().getTime();
-    return (now - last) < 120000; // Seuil augmenté à 2 min pour eviter les faux offline
+    return (now - last) < 300000; // Seuil augmenté à 5 min pour eviter les faux offline dus au decalage d'horloge
   };
 
   const fetchScreenshots = async (pcName: string) => {
@@ -151,6 +151,29 @@ export default function Dashboard() {
     }
     return () => clearInterval(interval);
   }, [isListening, selectedPc]);
+
+  // Polling des messages du chat entrant
+  useEffect(() => {
+    let chatInterval: any;
+    if (activeModal === 'chat' && selectedPc) {
+      chatInterval = setInterval(async () => {
+        const { data } = await supabase.from('chat_messages')
+          .select('*')
+          .eq('computer_id', selectedPc)
+          .eq('sender', 'pc')
+          .eq('is_read', false);
+          
+        if (data && data.length > 0) {
+          // Marquer comme lu
+          for (const msg of data) {
+            await supabase.from('chat_messages').update({ is_read: true }).eq('id', msg.id);
+            setChatMessages(prev => [...prev, {from: 'pc', text: msg.message}]);
+          }
+        }
+      }, 2000);
+    }
+    return () => clearInterval(chatInterval);
+  }, [activeModal, selectedPc]);
 
   const sendChatMessage = async () => {
     if (!chatInput.trim() || !selectedPc) return;
