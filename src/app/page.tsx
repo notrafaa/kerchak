@@ -122,16 +122,6 @@ export default function Dashboard() {
     }
   };
 
-    if (data) {
-      // Filtrer les images qui commencent par le nom du PC
-      const pcFiles = data.filter(f => f.name.startsWith(pcName));
-      const urls = pcFiles.map(f => {
-        const { data: urlData } = supabase.storage.from('kerchak-assets').getPublicUrl(f.name);
-        return urlData.publicUrl;
-      });
-      setScreenshots(urls);
-    }
-  };
 
   const sendChatMessage = async () => {
     if (!chatInput.trim() || !selectedPc) return;
