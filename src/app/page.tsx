@@ -52,13 +52,22 @@ export default function Dashboard() {
   }, []);
 
   const getAvIcon = (av: string) => {
-    if (av.includes('Bitdefender')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Bitdefender_Logo.svg/128px-Bitdefender_Logo.svg.png";
-    if (av.includes('Avast')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Avast_logo.svg/128px-Avast_logo.svg.png";
-    if (av.includes('Kaspersky')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Kaspersky_Lab_logo.svg/128px-Kaspersky_Lab_logo.svg.png";
-    if (av.includes('Defender')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Microsoft_Windows_Defender_icon.svg/128px-Microsoft_Windows_Defender_icon.svg.png";
-    if (av.includes('AVG')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/AVG_logo.svg/128px-AVG_logo.svg.png";
-    if (av.includes('Norton')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Norton_logo.svg/128px-Norton_logo.svg.png";
-    return "https://cdn-icons-png.flaticon.com/512/752/752712.png"; // Generic Shield
+    const lowAv = av.toLowerCase();
+    if (lowAv.includes('bitdefender')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Bitdefender_Logo.svg/128px-Bitdefender_Logo.svg.png";
+    if (lowAv.includes('avast')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Avast_logo.svg/128px-Avast_logo.svg.png";
+    if (lowAv.includes('kaspersky')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Kaspersky_Lab_logo.svg/128px-Kaspersky_Lab_logo.svg.png";
+    if (lowAv.includes('defender')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Microsoft_Windows_Defender_icon.svg/128px-Microsoft_Windows_Defender_icon.svg.png";
+    if (lowAv.includes('avg')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/AVG_logo.svg/128px-AVG_logo.svg.png";
+    if (lowAv.includes('norton')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Norton_logo.svg/128px-Norton_logo.svg.png";
+    if (lowAv.includes('eset') || lowAv.includes('nod32')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/ESET_Logo.svg/128px-ESET_Logo.svg.png";
+    if (lowAv.includes('mcafee')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/McAfee_logo.svg/128px-McAfee_logo.svg.png";
+    if (lowAv.includes('avira')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Avira_Logo.svg/128px-Avira_Logo.svg.png";
+    if (lowAv.includes('malwarebytes')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Malwarebytes_logo.svg/128px-Malwarebytes_logo.svg.png";
+    if (lowAv.includes('sophos')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Sophos_Logo.svg/128px-Sophos_Logo.svg.png";
+    if (lowAv.includes('trend micro')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Trend_Micro_Logo.svg/128px-Trend_Micro_Logo.svg.png";
+    if (lowAv.includes('panda')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Panda_Security_logo.svg/128px-Panda_Security_logo.svg.png";
+    if (lowAv.includes('totalav')) return "https://www.totalav.com/images/totalav-logo-white.png";
+    return "https://cdn-icons-png.flaticon.com/512/752/752712.png"; 
   };
 
   const deleteComputer = async (id: string, name: string) => {
