@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Monitor, Power, RefreshCw, ShieldAlert, Terminal, Camera, Mic, MessageSquare, Shield, Activity, X, Video, ChevronRight, Folder, Settings, Download, Trash2, FileText, Play, Plus, Edit2, Save, Upload } from 'lucide-react';
+import { Monitor, Power, RefreshCw, ShieldAlert, Terminal, Camera, Mic, MessageSquare, Shield, Activity, X, Video, ChevronRight, Folder, Settings, Download, Trash2, FileText, Play, Plus, Edit2, Save, Upload, Lock } from 'lucide-react';
 
 interface Computer {
   id: string;
@@ -38,6 +38,12 @@ export default function Dashboard() {
   const [savedCommands, setSavedCommands] = useState<{id:string, name:string, cmd:string, args:string, hasParams:boolean}[]>([]);
   const [isCreatingCommand, setIsCreatingCommand] = useState(false);
   const [newCmd, setNewCmd] = useState({name:'', cmd:'', args:'', hasParams:false});
+
+  // Authentication
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const MASTER_PASSWORD = "clack45";
 
   const scrollToBottom = () => {
     terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -79,6 +85,12 @@ export default function Dashboard() {
   const [countdown, setCountdown] = useState(10);
 
   useEffect(() => {
+    const auth = localStorage.getItem('kerchak_auth');
+    if (auth === 'true') {
+      setIsAuthenticated(true);
+    }
+    setIsAuthChecking(false);
+
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev === 0) {
@@ -90,6 +102,62 @@ export default function Dashboard() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === MASTER_PASSWORD) {
+      setIsAuthenticated(true);
+      localStorage.setItem('kerchak_auth', 'true');
+    } else {
+      alert("Accès refusé. Mot de passe incorrect.");
+      setPasswordInput("");
+    }
+  };
+
+  if (isAuthChecking) return <div className="min-h-screen bg-black flex items-center justify-center"><RefreshCw className="text-red-600 animate-spin" size={40} /></div>;
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(220,38,38,0.1),transparent)] animate-pulse"></div>
+        <div className="w-full max-w-md bg-[#0c0c0c] border border-red-500/20 p-8 rounded-3xl shadow-[0_0_100px_rgba(220,38,38,0.15)] relative z-10">
+          <div className="flex flex-col items-center gap-6 mb-8">
+            <div className="w-20 h-20 bg-red-600/10 rounded-2xl border border-red-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(220,38,38,0.2)]">
+              <Lock className="text-red-500" size={40} />
+            </div>
+            <div className="text-center">
+              <h1 className="text-3xl font-black text-white tracking-tighter uppercase mb-2">Kerchak <span className="text-red-600">Access</span></h1>
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-widest opacity-50">Authorized Personnel Only</p>
+            </div>
+          </div>
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="relative group">
+              <input 
+                type="password" 
+                value={passwordInput}
+                onChange={e => setPasswordInput(e.target.value)}
+                autoFocus
+                placeholder="ENTER ACCESS KEY..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-center text-white font-mono tracking-[0.5em] focus:outline-none focus:border-red-600 transition-all placeholder:tracking-normal placeholder:opacity-30"
+              />
+              <div className="absolute inset-0 rounded-xl bg-red-600/5 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"></div>
+            </div>
+            <button 
+              type="submit"
+              className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all active:scale-95 uppercase tracking-widest text-sm"
+            >
+              Unlock Terminal
+            </button>
+          </form>
+          
+          <div className="mt-8 text-center">
+            <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">© 2026 Kerchak Secure Systems</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const getAvIcon = (av: string) => {
     const lowAv = av.toLowerCase();
@@ -450,9 +518,16 @@ export default function Dashboard() {
             <p className="text-xs text-gray-500 uppercase tracking-widest">Advanced Command & Control</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
+        <div className="flex items-center gap-4 bg-[#111] border border-white/10 px-4 py-2 rounded-full shadow-lg">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
           <span className="text-sm font-medium">{computers.filter(c => isOnline(c.last_seen)).length} Online</span>
+          <div className="w-[1px] h-4 bg-white/10 mx-2"></div>
+          <button 
+            onClick={() => { localStorage.removeItem('kerchak_auth'); setIsAuthenticated(false); }}
+            className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors flex items-center gap-2"
+          >
+            <Power size={14} /> Logout
+          </button>
         </div>
       </header>
 
