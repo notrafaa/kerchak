@@ -331,7 +331,7 @@ export default function Dashboard() {
               </h3>
               <div className="flex gap-4 items-center">
                 <button 
-                  onClick={() => requestCapture(activeModal)} 
+                  onClick={() => requestCapture(activeModal === 'screenshot' ? 'ss' : 'webcam')} 
                   disabled={isCapturing}
                   className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold text-sm disabled:opacity-50 flex items-center gap-2"
                 >
