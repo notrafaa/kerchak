@@ -53,11 +53,22 @@ export default function Dashboard() {
         });
       }).subscribe();
 
-    const interval = setInterval(() => {
-      setComputers(current => [...current]); // Force re-render pour isOnline
-    }, 10000);
+    return () => { supabase.removeChannel(sub); };
+  }, []);
 
-    return () => { supabase.removeChannel(sub); clearInterval(interval); };
+  const [countdown, setCountdown] = useState(10);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === 0) {
+          setComputers(current => [...current]); // Force re-render pour isOnline
+          return 10;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const getAvIcon = (av: string) => {
@@ -85,7 +96,7 @@ export default function Dashboard() {
     const utcString = lastSeen.endsWith('Z') ? lastSeen : `${lastSeen}Z`;
     const last = new Date(utcString).getTime();
     const now = new Date().getTime();
-    return (now - last) < 45000; // 45 sec de tolérance (Heartbeat = 30s)
+    return (now - last) < 15000; // 15 sec de tolérance (Heartbeat = 5s)
   };
 
   const fetchScreenshots = async (pcName: string) => {
@@ -237,6 +248,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
+          <span className="text-gray-500 text-xs font-mono w-4 text-right">{countdown}</span>
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
           <span className="text-sm font-medium">{computers.filter(c => isOnline(c.last_seen)).length} Online</span>
         </div>
