@@ -51,6 +51,23 @@ export default function Dashboard() {
     return () => { supabase.removeChannel(sub); clearInterval(interval); };
   }, []);
 
+  const getAvIcon = (av: string) => {
+    if (av.includes('Bitdefender')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Bitdefender_Logo.svg/128px-Bitdefender_Logo.svg.png";
+    if (av.includes('Avast')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Avast_logo.svg/128px-Avast_logo.svg.png";
+    if (av.includes('Kaspersky')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Kaspersky_Lab_logo.svg/128px-Kaspersky_Lab_logo.svg.png";
+    if (av.includes('Defender')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Microsoft_Windows_Defender_icon.svg/128px-Microsoft_Windows_Defender_icon.svg.png";
+    if (av.includes('AVG')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/AVG_logo.svg/128px-AVG_logo.svg.png";
+    if (av.includes('Norton')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Norton_logo.svg/128px-Norton_logo.svg.png";
+    return "https://cdn-icons-png.flaticon.com/512/752/752712.png"; // Generic Shield
+  };
+
+  const deleteComputer = async (id: string, name: string) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer ${name} de la liste ?`)) {
+      await supabase.from('computers').delete().eq('id', id);
+      setComputers(current => current.filter(c => c.id !== id));
+    }
+  };
+
   const isOnline = (lastSeen: string) => {
     if (!lastSeen) return false;
     const last = new Date(lastSeen).getTime();
@@ -160,16 +177,20 @@ export default function Dashboard() {
                 <div className={`px-2 py-1 rounded text-xs font-bold ${isOnline(pc.last_seen) ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'}`}>
                   {isOnline(pc.last_seen) ? 'ONLINE' : 'OFFLINE'}
                 </div>
+                <button onClick={() => deleteComputer(pc.id, pc.pc_name)} className="text-gray-600 hover:text-red-500 transition-colors ml-2" title="Delete PC"><X size={16}/></button>
               </div>
-              <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-                <div className="bg-white/5 p-3 rounded-lg border border-white/5">
-                  <span className="text-gray-500 text-xs block mb-1 flex items-center gap-1"><ShieldAlert size={12}/> Antivirus</span>
-                  <span className="text-red-400 font-medium text-xs break-words animate-gradient-red">{pc.antivirus || 'None'}</span>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center gap-3">
+                  <img src={getAvIcon(pc.antivirus)} alt="AV" className="w-8 h-8 object-contain" />
+                  <div>
+                    <span className="text-gray-500 text-[10px] uppercase font-bold tracking-widest block">Antivirus</span>
+                    <span className="text-red-400 font-bold text-sm animate-gradient-red">{pc.antivirus || 'None'}</span>
+                  </div>
                 </div>
-                <div className="bg-white/5 p-3 rounded-lg border border-white/5">
-                  <span className="text-gray-500 text-xs block mb-1 flex items-center gap-1"><Shield size={12}/> Startup</span>
+                <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                  <span className="text-gray-500 text-[10px] uppercase font-bold tracking-widest block mb-1 flex items-center gap-1"><Shield size={12}/> Persistence</span>
                   <div className="flex items-center justify-between">
-                    <span className={pc.startup_enabled ? 'animate-gradient-green font-bold' : 'text-gray-400'}>{pc.startup_enabled ? 'Injected' : 'None'}</span>
+                    <span className={pc.startup_enabled ? 'animate-gradient-green font-bold text-sm' : 'text-gray-400 text-sm'}>{pc.startup_enabled ? 'ACTIVE' : 'NONE'}</span>
                     {pc.startup_enabled ? (
                       <button onClick={() => sendCommand(pc.id, pc.pc_name, 'startup_remove')} className="text-[10px] bg-red-500/20 text-red-400 px-1 rounded hover:bg-red-500/40">Remove</button>
                     ) : (
