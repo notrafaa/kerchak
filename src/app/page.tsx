@@ -59,35 +59,6 @@ export default function Dashboard() {
   };
 
   const fetchScreenshots = async (pcName: string) => {
-...
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes gradientFlow {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .animate-gradient-red {
-          background: linear-gradient(-45deg, #ef4444, #991b1b, #dc2626, #7f1d1d);
-          background-size: 400% 400%;
-          animation: gradientFlow 3s ease infinite;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-        .animate-gradient-green {
-          background: linear-gradient(-45deg, #22c55e, #14532d, #16a34a, #064e3b);
-          background-size: 400% 400%;
-          animation: gradientFlow 3s ease infinite;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-        .animate-gradient-title {
-          background: linear-gradient(-45deg, #ffffff, #9ca3af, #f3f4f6, #4b5563);
-          background-size: 400% 400%;
-          animation: gradientFlow 5s ease infinite;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-      `}} />
     const { data, error } = await supabase.storage.from('kerchak-assets').list('', {
       limit: 10,
       offset: 0,
@@ -130,6 +101,34 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-gray-200 p-6 font-sans selection:bg-red-500/30">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes gradientFlow {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient-red {
+          background: linear-gradient(-45deg, #ef4444, #991b1b, #dc2626, #7f1d1d);
+          background-size: 400% 400%;
+          animation: gradientFlow 3s ease infinite;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .animate-gradient-green {
+          background: linear-gradient(-45deg, #22c55e, #14532d, #16a34a, #064e3b);
+          background-size: 400% 400%;
+          animation: gradientFlow 3s ease infinite;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .animate-gradient-title {
+          background: linear-gradient(-45deg, #ffffff, #9ca3af, #f3f4f6, #4b5563);
+          background-size: 400% 400%;
+          animation: gradientFlow 5s ease infinite;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+      `}} />
       <header className="flex justify-between items-center mb-10 border-b border-white/10 pb-6">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center shadow-[0_0_20px_rgba(220,38,38,0.4)]">
