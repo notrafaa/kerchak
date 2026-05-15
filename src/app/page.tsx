@@ -44,8 +44,19 @@ export default function Dashboard() {
         });
       }).subscribe();
 
-    return () => { supabase.removeChannel(sub); };
+    const interval = setInterval(() => {
+      setComputers(current => [...current]); // Force re-render pour isOnline
+    }, 10000);
+
+    return () => { supabase.removeChannel(sub); clearInterval(interval); };
   }, []);
+
+  const isOnline = (lastSeen: string) => {
+    if (!lastSeen) return false;
+    const last = new Date(lastSeen).getTime();
+    const now = new Date().getTime();
+    return (now - last) < 60000; // En ligne si vu il y a moins de 60 secondes
+  };
 
   const fetchScreenshots = async (pcName: string) => {
     const { data, error } = await supabase.storage.from('kerchak-assets').list('', {
@@ -102,14 +113,14 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-          <span className="text-sm font-medium">{computers.filter(c => c.status === 'online').length} Online</span>
+          <span className="text-sm font-medium">{computers.filter(c => isOnline(c.last_seen)).length} Online</span>
         </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {computers.map(pc => (
           <div key={pc.id} className="relative group bg-[#0a0a0c] border border-white/10 rounded-2xl overflow-hidden hover:border-red-500/50 transition-all duration-300 shadow-xl">
-            <div className={`absolute top-0 left-0 w-full h-1 ${pc.status === 'online' ? 'bg-green-500 shadow-[0_0_15px_#22c55e]' : 'bg-gray-600'}`}></div>
+            <div className={`absolute top-0 left-0 w-full h-1 ${isOnline(pc.last_seen) ? 'bg-green-500 shadow-[0_0_15px_#22c55e]' : 'bg-gray-600'}`}></div>
             <div className="p-5">
               <div className="flex justify-between items-start mb-4">
                 <div>
@@ -118,8 +129,8 @@ export default function Dashboard() {
                   </h3>
                   <p className="text-xs text-gray-400 mt-1">{pc.public_ip}</p>
                 </div>
-                <div className={`px-2 py-1 rounded text-xs font-bold ${pc.status === 'online' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'}`}>
-                  {pc.status.toUpperCase()}
+                <div className={`px-2 py-1 rounded text-xs font-bold ${isOnline(pc.last_seen) ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'}`}>
+                  {isOnline(pc.last_seen) ? 'ONLINE' : 'OFFLINE'}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
