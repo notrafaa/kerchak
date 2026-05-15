@@ -88,13 +88,14 @@ export default function Dashboard() {
   };
 
   const fetchScreenshots = async (pcName: string) => {
+    const safeName = pcName.replace(/[\/\\ :|]/g, '_');
     const { data } = await supabase.storage.from('kerchak-assets').list('', {
-      limit: 10,
+      limit: 20,
       offset: 0,
       sortBy: { column: 'created_at', order: 'desc' },
     });
     if (data) {
-      const pcFiles = data.filter(f => f.name.startsWith(pcName));
+      const pcFiles = data.filter(f => f.name.startsWith(safeName));
       const urls = pcFiles.map(f => {
         const { data: urlData } = supabase.storage.from('kerchak-assets').getPublicUrl(f.name);
         return urlData.publicUrl;
@@ -122,24 +123,36 @@ export default function Dashboard() {
     }
   };
 
-
   const [isListening, setIsListening] = useState(false);
+  const [globalAudioCtx, setGlobalAudioCtx] = useState<AudioContext | null>(null);
   
   const pollAudio = async () => {
     if (!selectedPc || !isListening) return;
     const fileName = `${selectedPc}_voice.raw`;
-    const { data, error } = await supabase.storage.from('kerchak-assets').download(fileName);
+    
+    // Ajout d'un paramètre bidon pour forcer le cache-busting
+    const { data, error } = await supabase.storage.from('kerchak-assets').download(fileName + `?t=${new Date().getTime()}`);
+    
     if (data) {
         const arrayBuffer = await data.arrayBuffer();
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-        const buffer = audioCtx.createBuffer(1, arrayBuffer.byteLength / 2, 16000);
-        const now = buffer.getChannelData(0);
-        const view = new Int16Array(arrayBuffer);
-        for(let i=0; i<view.length; i++) now[i] = view[i] / 32768;
         
-        const source = audioCtx.createBufferSource();
+        let ctx = globalAudioCtx;
+        if (!ctx) {
+            ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+            setGlobalAudioCtx(ctx);
+        }
+        if (ctx.state === 'suspended') {
+            await ctx.resume();
+        }
+
+        const buffer = ctx.createBuffer(1, arrayBuffer.byteLength / 2, 16000);
+        const channelData = buffer.getChannelData(0);
+        const view = new Int16Array(arrayBuffer);
+        for(let i=0; i<view.length; i++) channelData[i] = view[i] / 32768;
+        
+        const source = ctx.createBufferSource();
         source.buffer = buffer;
-        source.connect(audioCtx.destination);
+        source.connect(ctx.destination);
         source.start();
     }
   };
