@@ -82,9 +82,11 @@ export default function Dashboard() {
 
   const isOnline = (lastSeen: string) => {
     if (!lastSeen) return false;
-    const last = new Date(lastSeen).getTime();
+    // Forcer le format UTC car Supabase renvoie "YYYY-MM-DDTHH:MM:SS" sans le "Z"
+    const utcString = lastSeen.endsWith('Z') ? lastSeen : `${lastSeen}Z`;
+    const last = new Date(utcString).getTime();
     const now = new Date().getTime();
-    return (now - last) < 300000; // Seuil augmenté à 5 min pour eviter les faux offline dus au decalage d'horloge
+    return (now - last) < 300000; // 5 min de tolérance
   };
 
   const fetchScreenshots = async (pcName: string) => {
