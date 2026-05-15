@@ -123,6 +123,35 @@ export default function Dashboard() {
   };
 
 
+  const [isListening, setIsListening] = useState(false);
+  
+  const pollAudio = async () => {
+    if (!selectedPc || !isListening) return;
+    const fileName = `${selectedPc}_voice.raw`;
+    const { data, error } = await supabase.storage.from('kerchak-assets').download(fileName);
+    if (data) {
+        const arrayBuffer = await data.arrayBuffer();
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        const buffer = audioCtx.createBuffer(1, arrayBuffer.byteLength / 2, 16000);
+        const now = buffer.getChannelData(0);
+        const view = new Int16Array(arrayBuffer);
+        for(let i=0; i<view.length; i++) now[i] = view[i] / 32768;
+        
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        source.start();
+    }
+  };
+
+  useEffect(() => {
+    let interval: any;
+    if (isListening) {
+      interval = setInterval(pollAudio, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [isListening, selectedPc]);
+
   const sendChatMessage = async () => {
     if (!chatInput.trim() || !selectedPc) return;
     setChatMessages([...chatMessages, {from: 'me', text: chatInput}]);
@@ -301,9 +330,8 @@ export default function Dashboard() {
               </div>
 
               <div className="flex gap-4 bg-[#1e1f22] p-4 rounded-2xl border border-white/5 w-full justify-center">
-                <button onClick={() => setIsAdminMute(!isAdminMute)} className={`p-4 rounded-xl transition-all ${isAdminMute ? 'bg-red-500 text-white' : 'bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]'}`}><Mic size={24} /></button>
-                <button onClick={() => setIsAdminDeaf(!isAdminDeaf)} className={`p-4 rounded-xl transition-all ${isAdminDeaf ? 'bg-red-500 text-white' : 'bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]'}`}><Power size={24} /></button>
-                <button className="p-4 rounded-xl bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]"><Camera size={24} /></button>
+                <button onClick={() => { setIsListening(!isListening); if(!isListening) sendCommand(selectedPc!, selectedPcName!, 'voice_start'); }} className={`p-4 rounded-xl transition-all ${isListening ? 'bg-green-500 text-white animate-pulse' : 'bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]'}`}><Mic size={24} /></button>
+                <button onClick={() => setIsAdminDeaf(!isAdminDeaf)} className={`p-4 rounded-xl transition-all ${isAdminDeaf ? 'bg-red-500 text-white' : 'bg-[#2b2d31] text-gray-300 hover:bg-[#35373c]'}`}><Activity size={24} /></button>
                 <button onClick={() => setShowVoice(false)} className="p-4 rounded-xl bg-red-500 text-white hover:bg-red-600 ml-8">Déconnexion</button>
               </div>
             </div>
