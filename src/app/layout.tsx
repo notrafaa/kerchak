@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'KERCHAK COMMAND CENTER',
-  description: 'Advanced C2 Dashboard',
+  title: 'Kerchak Software',
+  description: 'kerchak on top',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
