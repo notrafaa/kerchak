@@ -16,7 +16,7 @@ interface Computer {
 
 export default function Dashboard() {
   const [computers, setComputers] = useState<Computer[]>([]);
-  const [activeModal, setActiveModal] = useState<'chat' | 'screenshot' | null>(null);
+  const [activeModal, setActiveModal] = useState<'chat' | 'screenshot' | 'webcam' | null>(null);
   const [selectedPc, setSelectedPc] = useState<string | null>(null);
   const [selectedPcName, setSelectedPcName] = useState<string | null>(null);
   const [screenshots, setScreenshots] = useState<string[]>([]);
