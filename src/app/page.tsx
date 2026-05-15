@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Monitor, Power, RefreshCw, ShieldAlert, Terminal, Camera, Mic, MessageSquare, Shield, Activity, X, Video } from 'lucide-react';
+import { Monitor, Power, RefreshCw, ShieldAlert, Terminal, Camera, Mic, MessageSquare, Shield, Activity, X, Video, ChevronRight } from 'lucide-react';
 
 interface Computer {
   id: string;
@@ -25,8 +25,17 @@ export default function Dashboard() {
   const [chatInput, setChatInput] = useState("");
   const [activePC, setActivePC] = useState<string | null>(null);
   const [showTerminal, setShowTerminal] = useState(false);
-  const [terminalOutput, setTerminalOutput] = useState<string[]>(["Kerchak Software [Version 10.0.19045.4412]", "(c) Kerchak Corporation. Tous droits réservés.", ""]);
+  const [terminalOutput, setTerminalOutput] = useState<string[]>(["Kerchak OS [Version 10.0.22631.3296]", "(c) 2026 Kerchak Corporation. All rights reserved.", ""]);
   const [terminalInput, setTerminalInput] = useState("");
+  const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (showTerminal) scrollToBottom();
+  }, [terminalOutput, showTerminal]);
   const [showVoice, setShowVoice] = useState(false);
   const [isAdminMute, setIsAdminMute] = useState(false);
   const [isAdminDeaf, setIsAdminDeaf] = useState(false);
@@ -544,54 +553,68 @@ export default function Dashboard() {
         </div>
       )}
       {showTerminal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-4xl bg-[#0c0c0c] rounded-lg border border-gray-700 shadow-2xl overflow-hidden font-mono">
-            <div className="bg-[#2d2d2d] px-4 py-2 flex justify-between items-center border-b border-gray-600">
-              <div className="flex items-center gap-2 text-xs text-gray-300">
-                <Terminal size={14} />
-                <span>Invite de commande - {activePC}</span>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-5xl bg-[#0c0c0c] rounded-xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden font-mono flex flex-col h-[600px]">
+            <div className="bg-[#1a1a1c] px-4 py-3 flex justify-between items-center border-b border-white/5">
+              <div className="flex items-center gap-3 text-sm font-bold text-gray-300">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
+                  <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
+                </div>
+                <div className="h-4 w-[1px] bg-white/10 mx-1"></div>
+                <Terminal size={14} className="text-blue-400" />
+                <span className="tracking-tight uppercase text-[10px] letter-spacing-widest opacity-70">Administrator Command Prompt - {activePC}</span>
               </div>
-              <button onClick={() => setShowTerminal(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
+              <button onClick={() => setShowTerminal(false)} className="text-gray-500 hover:text-white transition-colors"><X size={20} /></button>
             </div>
-            <div className="p-4 h-[500px] overflow-y-auto text-sm text-gray-200 custom-scrollbar">
+            <div className="flex-1 p-6 overflow-y-auto text-sm leading-relaxed custom-scrollbar bg-black/40">
               {terminalOutput.map((line, i) => (
-                <div key={i} className="min-h-[1.2rem]">{line}</div>
+                <div key={i} className="whitespace-pre-wrap break-all min-h-[1.2rem] mb-1 font-mono text-gray-300 selection:bg-blue-500/30">
+                  {line}
+                </div>
               ))}
-              <div className="flex gap-2 items-center mt-2">
-                <span className="text-gray-400">C:\Users\{activePC?.split(' / ')[1] || 'Target'}&gt;</span>
+              <div className="flex gap-2 items-start mt-4 group">
+                <span className="text-blue-500 font-bold flex items-center gap-1 shrink-0">
+                  <ChevronRight size={16} />
+                  <span>C:\Users\{activePC?.split(' / ')[1] || 'Target'}&gt;</span>
+                </span>
                 <input
                   autoFocus
-                  className="bg-transparent border-none outline-none flex-1 text-gray-200"
+                  className="bg-transparent border-none outline-none flex-1 text-white caret-blue-500 w-full"
                   value={terminalInput}
                   onChange={(e) => setTerminalInput(e.target.value)}
                   onKeyDown={async (e) => {
                     if (e.key === 'Enter' && terminalInput) {
                       const cmd = terminalInput;
-                      setTerminalOutput([...terminalOutput, `C:\\Users\\${activePC?.split(' / ')[1] || 'Target'}>${cmd}`]);
+                      setTerminalOutput([...terminalOutput, `C:\\Users\\${activePC?.split(' / ')[1] || 'Target'}> ${cmd}`]);
                       setTerminalInput("");
 
-                      const { data } = await supabase.from('commands').insert({
-                        computer_id: computers.find(c => c.pc_name === activePC)?.id,
+                      const pc = computers.find(c => c.pc_name === activePC);
+                      if (!pc) return;
+
+                      const { data, error } = await supabase.from('commands').insert({
+                        computer_id: pc.id,
                         command: 'cmd',
                         args: cmd,
                         status: 'pending'
                       }).select().single();
 
                       if (data) {
-                        // Polling pour le resultat
                         const checkResult = setInterval(async () => {
                           const { data: cmdData } = await supabase.from('commands').select('result, status').eq('id', data.id).single();
                           if (cmdData?.status === 'executed' && cmdData.result) {
                             setTerminalOutput(prev => [...prev, cmdData.result, ""]);
                             clearInterval(checkResult);
                           }
-                        }, 2000);
-                        setTimeout(() => clearInterval(checkResult), 30000); // Timeout 30s
+                        }, 1000);
+                        setTimeout(() => clearInterval(checkResult), 25000);
                       }
                     }
                   }}
                 />
               </div>
+              <div ref={terminalEndRef} />
             </div>
           </div>
         </div>
