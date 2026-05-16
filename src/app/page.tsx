@@ -395,7 +395,7 @@ export default function Dashboard() {
         })
       });
     } catch(e) {
-      console.log("Room might already exist or creation failed", e);
+      // Room already exists is fine, we just want to ensure it's there
     }
     await supabase.from('commands').insert({ computer_id: pcId, command: 'stream_start', args: roomName, status: 'pending' });
     setActiveModal('stream');
