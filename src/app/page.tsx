@@ -145,7 +145,25 @@ export default function Dashboard() {
             v.autoplay = true;
             v.playsInline = true;
             v.srcObject = stream;
-            v.className = 'rounded-lg border border-white/10 shadow-xl bg-black object-contain w-full md:w-[48%] max-h-[45vh]';
+            v.className = 'rounded-lg border border-white/10 shadow-xl bg-black object-contain w-full md:w-[48%] max-h-[45vh] cursor-zoom-in transition-all duration-300 hover:scale-[1.02] active:scale-95';
+            v.onclick = () => {
+              if (v.classList.contains('fixed-zoom')) {
+                v.classList.remove('fixed-zoom');
+                v.style.position = 'static';
+                v.style.zIndex = 'auto';
+                v.style.width = '';
+                v.style.maxHeight = '45vh';
+              } else {
+                v.classList.add('fixed-zoom');
+                v.style.position = 'fixed';
+                v.style.top = '10%';
+                v.style.left = '10%';
+                v.style.width = '80%';
+                v.style.height = '80%';
+                v.style.zIndex = '100';
+                v.style.maxHeight = 'none';
+              }
+            };
             container.appendChild(v);
           } else {
             const a = document.createElement('audio') as HTMLAudioElement;

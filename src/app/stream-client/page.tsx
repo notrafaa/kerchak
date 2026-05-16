@@ -13,6 +13,7 @@ function StreamClientContent() {
     if (!room) return;
 
     const script = document.createElement('script');
+    document.title = "KERCHAK ENGINE v2.0";
     script.src = 'https://cdn.metered.ca/sdk/video/1.4.6/sdk.min.js';
     script.onload = async () => {
       try {
