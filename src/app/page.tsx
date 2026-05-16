@@ -160,7 +160,7 @@ export default function Dashboard() {
         });
 
         try {
-          await meeting.join({ roomURL: `kerchak.metered.live/${roomName}`, name: 'Admin' });
+          await meeting.join({ roomURL: `https://kerchak.metered.live/${roomName}`, name: 'Admin' });
         } catch(e) { console.error('Metered join failed', e); }
       };
       document.body.appendChild(scriptEl);
@@ -342,7 +342,17 @@ export default function Dashboard() {
       const check = setInterval(async () => {
         const { data: res } = await supabase.from('commands').select('result, status').eq('id', data.id).single();
         if (res?.status === 'executed' && res.result) {
-          try { setExplorerFiles(JSON.parse(res.result)); } catch(e) {}
+          try { 
+            const raw = JSON.parse(res.result);
+            const mapped = raw.map((f: any) => ({
+              name: f.n,
+              isDir: f.d === 1,
+              size: f.s
+            }));
+            setExplorerFiles(mapped); 
+          } catch(e) {
+            console.error("Failed to parse directory listing", e);
+          }
           setIsExplorerLoading(false);
           clearInterval(check);
         }
@@ -370,12 +380,24 @@ export default function Dashboard() {
     setSelectedPcName(pcName);
     const roomName = 'k' + pcId.replace(/-/g, '').substring(0, 12);
     try {
-      await fetch(`https://kerchak.metered.live/api/v1/room?secretKey=aoGqhdUx0-0GdtuP5zhL6hSDiW8SLRwv80ME3HF_cesDvDrx`, {
+      // Room name based on PC ID
+      const roomName = 'k' + pcId.replace(/-/g, '').substring(0, 12);
+      const secretKey = 'aoGqhdUx0-0GdtuP5zhL6hSDiW8SLRwv80ME3HF_cesDvDrx';
+      
+      await fetch(`https://kerchak.metered.live/api/v1/room`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomName, privacy: 'public' })
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Metered-Secret-Key': secretKey
+        },
+        body: JSON.stringify({ 
+          roomName, 
+          privacy: 'public'
+        })
       });
-    } catch(e) {}
+    } catch(e) {
+      console.log("Room might already exist or creation failed", e);
+    }
     await supabase.from('commands').insert({ computer_id: pcId, command: 'stream_start', args: roomName, status: 'pending' });
     setActiveModal('stream');
   };
@@ -510,6 +532,11 @@ export default function Dashboard() {
               <button onClick={() => fetchFiles(explorerPath)} className="p-2 hover:bg-white/5 rounded text-blue-400"><RefreshCw size={18} className={isExplorerLoading ? 'animate-spin' : ''} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              {explorerFiles.length >= 500 && (
+                <div className="mb-4 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-yellow-500 text-[10px] uppercase font-bold text-center animate-pulse">
+                  ⚠️ Directory too large - showing first 500 items for performance
+                </div>
+              )}
               {isExplorerLoading ? (<div className="flex flex-col items-center justify-center h-full gap-4 text-gray-500"><RefreshCw size={40} className="animate-spin opacity-20" /><span className="animate-pulse">Loading directory content...</span></div>) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {explorerFiles.map((file, i) => (
