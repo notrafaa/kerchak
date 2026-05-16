@@ -380,16 +380,12 @@ export default function Dashboard() {
     setSelectedPcName(pcName);
     const roomName = 'k' + pcId.replace(/-/g, '').substring(0, 12);
     try {
-      // Room name based on PC ID
       const roomName = 'k' + pcId.replace(/-/g, '').substring(0, 12);
       const secretKey = 'aoGqhdUx0-0GdtuP5zhL6hSDiW8SLRwv80ME3HF_cesDvDrx';
       
-      await fetch(`https://kerchak.metered.live/api/v1/room`, {
+      await fetch(`https://kerchak.metered.live/api/v1/room?secretKey=${secretKey}`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Metered-Secret-Key': secretKey
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           roomName, 
           privacy: 'public'
