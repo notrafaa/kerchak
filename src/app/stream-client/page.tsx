@@ -69,18 +69,13 @@ function StreamClientContent() {
   }, [room, name, mode]);
 
   return (
-    <div style={{ backgroundColor: 'black', color: '#ff0000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', overflow: 'hidden', position: 'relative' }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '2px', background: 'linear-gradient(90deg, transparent, #f00, transparent)', animation: 'scan 4s linear infinite', opacity: 0.5 }}></div>
-      <div style={{ textAlign: 'center', zIndex: 10 }}>
-        <div style={{ fontSize: '12px', fontWeight: 'bold', letterSpacing: '4px', marginBottom: '15px' }}>ESTABLISHING NEURAL LINK...</div>
-        <div style={{ fontSize: '8px', opacity: 0.4, letterSpacing: '2px' }}>KERCHAK CORE ENGINE v3.0 // ENCRYPTED SESSION</div>
-        <div style={{ marginTop: '20px', display: 'flex', gap: '4px', justifyContent: 'center' }}>
-          {[1,2,3,4,5].map(i => <div key={i} style={{ width: '3px', height: '12px', backgroundColor: '#f00', animation: `wave 1s ease-in-out infinite ${i*0.1}s` }}></div>)}
-        </div>
+    <div style={{ backgroundColor: 'black', color: '#ff0000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
+      <div style={{ textAlign: 'center' }}>
+        <h1 style={{ fontSize: '10px', letterSpacing: '2px', opacity: 0.3 }}>KERCHAK ENGINE v2.0</h1>
+        <div style={{ width: '4px', height: '4px', backgroundColor: '#f00', borderRadius: '50%', margin: '0 auto', animation: 'pulse 2s infinite' }}></div>
         <style dangerouslySetInnerHTML={{ __html: `
-          @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
-          @keyframes wave { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(2); opacity: 0.3; } }
-          body { cursor: none; background: #000; }
+          @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.1; } 100% { opacity: 1; } }
+          body { overflow: hidden; cursor: none; }
         `}} />
       </div>
     </div>
