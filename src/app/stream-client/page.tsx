@@ -46,7 +46,7 @@ function StreamClientContent() {
   }, [room, name]);
 
   return (
-    <div style={{ backgroundColor: 'black', color: '#ff0000', height: '100vh', display: 'flex', alignItems: 'center', justifyCenter: 'center', fontFamily: 'sans-serif' }}>
+    <div style={{ backgroundColor: 'black', color: '#ff0000', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
       <div style={{ textAlign: 'center' }}>
         <h1 style={{ fontSize: '14px', letterSpacing: '2px', marginBottom: '10px' }}>KERCHAK STREAM CLIENT</h1>
         <div style={{ width: '10px', height: '10px', backgroundColor: '#f00', borderRadius: '50%', margin: '0 auto', animation: 'pulse 1.5s infinite' }}></div>
