@@ -160,13 +160,16 @@ export default function Dashboard() {
         });
 
         try {
-          await meeting.join({ roomURL: `https://kerchak.metered.live/${roomName}`, name: 'Admin' });
+          console.log(`Attempting to join room: kerchak.metered.live/${roomName}`);
+          await meeting.join({ roomURL: `kerchak.metered.live/${roomName}`, name: 'Admin' });
+          console.log("Joined successfully");
         } catch(e) { console.error('Metered join failed', e); }
       };
       document.body.appendChild(scriptEl);
     };
 
-    const timer = setTimeout(load, 3000);
+    // Laisser 5s au client pour se connecter avant de joindre
+    const timer = setTimeout(load, 5000);
     return () => {
       active = false;
       clearTimeout(timer);
