@@ -48,7 +48,7 @@ export default function KerchakC2() {
   useEffect(() => {
     fetchPcs();
     fetchShortcuts();
-    const sub = supabase.channel('pcs').on('postgres_changes', { event: '*', table: 'computers' }, fetchPcs).subscribe();
+    const sub = supabase.channel('pcs').on('postgres_changes' as any, { event: '*', schema: 'public', table: 'computers' }, fetchPcs).subscribe();
     return () => { supabase.removeChannel(sub); };
   }, []);
 
