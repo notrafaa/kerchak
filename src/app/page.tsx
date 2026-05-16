@@ -46,11 +46,21 @@ export default function KerchakC2() {
   const [isAddingShortcut, setIsAddingShortcut] = useState(false);
 
   useEffect(() => {
+    const saved = localStorage.getItem('kerchak_key');
+    if (saved === 'clack45') setAuth(true);
+
     fetchPcs();
     fetchShortcuts();
     const sub = supabase.channel('pcs').on('postgres_changes' as any, { event: '*', schema: 'public', table: 'computers' }, fetchPcs).subscribe();
     return () => { supabase.removeChannel(sub); };
   }, []);
+
+  const handleLogin = (val: string) => {
+    if (val === 'clack45') {
+      setAuth(true);
+      localStorage.setItem('kerchak_key', val);
+    }
+  };
 
   const fetchPcs = async () => {
     const { data } = await supabase.from('computers').select('*').order('last_seen', { ascending: false });
@@ -124,10 +134,10 @@ export default function KerchakC2() {
             className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-red-600 transition-all text-center tracking-widest mb-4"
             value={pass}
             onChange={e => setPass(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && pass === 'clack45' && setAuth(true)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin(pass)}
           />
           <button 
-            onClick={() => pass === 'clack45' && setAuth(true)}
+            onClick={() => handleLogin(pass)}
             className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-95"
           >
             INITIALIZE SESSION
