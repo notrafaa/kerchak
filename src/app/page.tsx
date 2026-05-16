@@ -13,10 +13,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIG ---
-const supabase = createClient(
-  "https://erowwdiqlooseyvenesd.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyb3d3ZGlxbG9vc2V5dmVuZXNkIiwicm9sZSI6ImVyb3d3ZGlxbG9vc2V5dmVuZXNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDAzMjEsImV4cCI6MjA5NDI3NjMyMX0.338eEhJ_sTlZ99VqZ7HZ15eUy5DahA6lnSdBX15BTrc"
-);
+import { supabase } from '@/lib/supabase';
 
 export default function KerchakC2() {
   const [auth, setAuth] = useState(false);
